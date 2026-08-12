@@ -78,11 +78,11 @@ const STRINGS = {
     keep:"Keep me signed in", forgot:"Forgot password",
     login:"Log in →", signing:"Logging in…", ok:"Welcome back ✓",
     noacc:"Don't have access?", contact:"Contact your administrator",
-    demo:"Secure login powered by Tahara AI",
+    demo:"Demo interface. Nothing is sent.",
     caps:"Caps Lock is on",
     terms:"Terms", privacy:"Privacy notice", copy:"© 2026 Tahara AI",
     err:"That email and password don't match. Try again or reset your password.",
-    redirect:"Logged in — taking you to your workspace…",
+    redirect:"Logged in. Taking you to your workspace…",
     docTitle:"Log in · Tahara AI"
   },
   ar: {
@@ -93,11 +93,11 @@ const STRINGS = {
     keep:"إبقائي مسجّل الدخول", forgot:"نسيت كلمة المرور",
     login:"تسجيل الدخول ←", signing:"جارٍ تسجيل الدخول…", ok:"مرحبًا بعودتك ✓",
     noacc:"ليس لديك صلاحية وصول؟", contact:"تواصل مع مسؤول النظام",
-    demo:"واجهة تجريبية — لا يتم إرسال أي بيانات.",
+    demo:"واجهة تجريبية. لا يتم إرسال أي بيانات.",
     caps:"مفتاح Caps Lock مفعّل",
     terms:"الشروط", privacy:"إشعار الخصوصية", copy:"© 2026 Tahara AI",
     err:"البريد الإلكتروني وكلمة المرور غير متطابقين. حاول مرة أخرى أو أعد تعيين كلمة المرور.",
-    redirect:"تم تسجيل الدخول — جارٍ نقلك إلى مساحة عملك…",
+    redirect:"تم تسجيل الدخول. جارٍ نقلك إلى مساحة عملك…",
     docTitle:"تسجيل الدخول · Tahara AI"
   }
 };
@@ -159,59 +159,45 @@ function setBanner(key, kind){
 }
 form.addEventListener("submit", async (e)=>{
   e.preventDefault();
-  const email = document.getElementById("email")?.value.trim();
-  const password = document.getElementById("password")?.value.trim();
-  const remember = document.getElementById("remember")?.checked || false;
-
-  if (!email || !password) {
-    banner.textContent = "Please enter email and password.";
-    banner.className = "banner error";
-    return;
-  }
-
+  if (!form.reportValidity()) return;
+  banner.className = "banner"; bannerKey = null;
   submitBtn.disabled = true;
   submitBtn.classList.add("loading");
-  btnKey = "signing";
-  btnLabel.textContent = STRINGS[lang].signing;
+  btnKey = "signing"; btnLabel.textContent = STRINGS[lang].signing;
 
+  /* ── BACKEND SEAM ─────────────────────────────────────────────
+     Calls POST /api/auth/login — see API-CONTRACT.md.
+     The placeholder route in app/api/auth/login/route.js mimics
+     the old demo (8+ char password succeeds) until the backend
+     developer replaces it with real authentication.            */
+  let ok = false, data = {};
   try {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ workEmail: email, password, rememberMe: remember })
+      body: JSON.stringify({
+        email: document.getElementById("email").value.trim(),
+        password: pwInput.value,
+        remember: document.getElementById("remember").checked
+      })
     });
-    const data = await res.json();
-
-    if (!res.ok) {
-      banner.textContent = data.error || STRINGS[lang].err;
-      banner.className = "banner error";
-      submitBtn.disabled = false;
-      submitBtn.classList.remove("loading");
-      btnKey = "login";
-      btnLabel.textContent = STRINGS[lang].login;
-      return;
-    }
-
-    // Success
-    banner.textContent = STRINGS[lang].ok;
-    banner.className = "banner success";
-    submitBtn.classList.remove("loading");
-    submitBtn.classList.add("success");
-    btnKey = "ok";
-    btnLabel.textContent = STRINGS[lang].ok;
-
-    setTimeout(() => {
-      window.location.href = "/overview";
-    }, 800);
-
+    ok = res.ok;
+    data = await res.json().catch(()=>({}));
   } catch (err) {
-    banner.textContent = "Network error. Please try again.";
-    banner.className = "banner error";
+    ok = false;
+  }
+
+  submitBtn.classList.remove("loading");
+  if (ok){
+    submitBtn.classList.add("success");
+    btnKey = "ok"; btnLabel.textContent = STRINGS[lang].ok;
+    setBanner("redirect","success");
+    if (data.redirect) setTimeout(()=>{ window.location.assign(data.redirect); }, 900);
+  } else {
     submitBtn.disabled = false;
-    submitBtn.classList.remove("loading");
-    btnKey = "login";
-    btnLabel.textContent = STRINGS[lang].login;
+    btnKey = "login"; btnLabel.textContent = STRINGS[lang].login;
+    setBanner("err","error");
+    pwInput.value = ""; pwInput.focus();
   }
 });
 

@@ -26,10 +26,11 @@ export default function OverviewPage(){
           </a>
           <div className="links">
             <a className="on" data-i18n="nOverview" href="#">Overview</a>
-            <a data-i18n="nGov" href="#">Governance</a>
+            <a data-i18n="nGov" href="/governance">Governance</a>
+            <a data-i18n="nFw" href="/framework">Frameworks</a>
             <a data-i18n="nDisc" href="#">Discovery</a>
             <a data-i18n="nAdv" href="#">Adversarial</a>
-            <a data-i18n="nPii" href="#">PII</a>
+            <a data-i18n="nGuard" href="#">Guardrails</a>
           </div>
           <div className="nav-r">
             <button className="theme-tg" id="themeTg" type="button" aria-label="Switch theme" title="Theme">
@@ -40,7 +41,7 @@ export default function OverviewPage(){
               <button type="button" data-lang="en" aria-pressed="true">EN</button>
               <button type="button" data-lang="ar" aria-pressed="false">عربي</button>
             </div>
-            <a className="cta-sm" data-i18n="ctaSm" href="#">Start assessment</a>
+            <a className="cta-sm" data-i18n="ctaSm" href="/governance">Start assessment</a>
             <a className="out" data-i18n="signout" href="/">Sign out</a>
           </div>
         </div>
@@ -50,21 +51,21 @@ export default function OverviewPage(){
       <div className="wrap">
         <header className="hero">
           <div>
-            <p className="eyebrow" data-rv data-i18n="eyeHero">Continuous AI assurance</p>
-            <h1 className="display" data-rv data-i18n="display">Trust is not declared.<br />It is <em>demonstrated.</em></h1>
+            <p className="eyebrow" data-rv style={{transitionDelay:".02s"}} data-i18n="eyeHero">Continuous AI assurance</p>
+            <h1 className="display" data-rv style={{transitionDelay:".1s"}} data-i18n="display">Trust is not declared.<br />It is <em>demonstrated.</em></h1>
             <p className="lede" data-rv>
               We map your system against the frameworks that bind it, then keep watching.
               The day a control stops operating, you find out. Not the auditor.
             </p>
-            <div className="cta-row" data-rv>
-              <a className="btn pri" data-i18n="cta1" href="#">Start an assessment →</a>
+            <div className="cta-row" data-rv style={{transitionDelay:".26s"}}>
+              <a className="btn pri" data-i18n="cta1" href="/governance">Start an assessment →</a>
               <a className="btn" data-i18n="cta2" href="#how">See how it works</a>
             </div>
-            <div className="fw-chips" data-rv>
+            <div className="fw-chips" data-rv style={{transitionDelay:".32s"}}>
               <span>EU AI Act</span><span>ISO/IEC 42001</span><span>ISO/IEC 23894</span><span>NIST AI RMF</span><span>+ Regional</span>
             </div>
           </div>
-          <div className="hero-seal" data-rv>
+          <div className="hero-seal" data-rv style={{transitionDelay:".15s"}}>
             <div id="seal"></div>
           </div>
         </header>
@@ -168,31 +169,36 @@ export default function OverviewPage(){
         </section>
       
         {/* ═══ ACCESS ═══ */}
-        <section className="sec keys2">
+        <section className="sec">
           <p className="eyebrow" data-rv data-i18n="eyeAcc">Access</p>
           <h2 data-rv data-i18n="h2Acc">We never hold your keys.</h2>
           <p className="sub" data-rv data-i18n="subAcc">The collector runs inside your boundary, under your credentials.</p>
-          <div className="acard" data-rv>
-            <div className="agrid">
-              <div className="acol deny">
-                <p className="ac-h"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/><path d="M5.5 5.5l13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg><span data-i18n="denyH">NEVER TOUCHES</span></p>
-                <div className="ai"><span className="ax">✕</span><span data-i18n="d1">Production inference payloads</span></div>
-                <div className="ai"><span className="ax">✕</span><span data-i18n="d2">Personal data of any kind</span></div>
-                <div className="ai"><span className="ax">✕</span><span data-i18n="d3">Model weights</span></div>
-                <div className="ai"><span className="ax">✕</span><span data-i18n="d4">Any write access, anywhere</span></div>
+      
+          <div className="find" data-rv>
+            <div className="fx">
+              <aside className="fx-v">
+                <div className="fx-badge"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5" stroke="#8FF0D4" strokeWidth="2"/><path d="M8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7" stroke="#8FF0D4" strokeWidth="2" strokeLinecap="round"/></svg></div>
+                <p className="fx-id">COLLECTOR.ACCESS</p>
+                <h3 className="fx-t" data-i18n="accT">Zero custody</h3>
+                <span className="sev g">OUTBOUND ONLY</span>
+                <div className="fx-sep"></div>
+                <div className="fx-refs">
+                  <span>NO INBOUND PATH</span>
+                  <span>NO PORT</span>
+                  <span>KILL SWITCH · YOURS</span>
+                </div>
+                <p className="fx-sum" data-i18n="accSum">Runs under your credentials, inside your boundary. <b>We never hold your keys.</b></p>
+              </aside>
+              <div className="fx-e">
+                <div className="erow" style={{transitionDelay:".05s"}}><span className="epill pdeny">NEVER</span><p className="estate" data-i18n="d1">Production inference payloads</p></div>
+                <div className="erow" style={{transitionDelay:".13s"}}><span className="epill pdeny">NEVER</span><p className="estate" data-i18n="d2">Personal data of any kind</p></div>
+                <div className="erow" style={{transitionDelay:".21s"}}><span className="epill pdeny">NEVER</span><p className="estate" data-i18n="d3">Model weights</p></div>
+                <div className="erow" style={{transitionDelay:".29s"}}><span className="epill pdeny">NEVER</span><p className="estate" data-i18n="d4">Any write access, anywhere</p></div>
+                <div className="eop sep"></div>
+                <div className="erow" style={{transitionDelay:".43s"}}><span className="epill pallow">READ-ONLY</span><p className="estate" data-i18n="a1">Config, IAM, registry metadata</p></div>
+                <div className="erow" style={{transitionDelay:".51s"}}><span className="epill pallow">READ-ONLY</span><p className="estate" data-i18n="a2">Log <b>completeness</b>, not contents</p></div>
+                <div className="erow" style={{transitionDelay:".59s"}}><span className="epill pallow">READ-ONLY</span><p className="estate" data-i18n="a3">Aggregate metrics you already compute</p></div>
               </div>
-              <div className="abound"><span className="bnode"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5" stroke="currentColor" strokeWidth="2"/><path d="M8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg></span></div>
-              <div className="acol allow">
-                <p className="ac-h"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg><span data-i18n="allowH">READS ONLY</span></p>
-                <div className="ai"><span className="ax">✓</span><span data-i18n="a1">Config, IAM, registry metadata</span></div>
-                <div className="ai"><span className="ax">✓</span><span data-i18n="a2">Log <b>&nbsp;completeness</b>, not contents</span></div>
-                <div className="ai"><span className="ax">✓</span><span data-i18n="a3">Aggregate metrics you already compute</span></div>
-              </div>
-            </div>
-            <div className="ameta">
-              <span>OUTBOUND ONLY</span>
-              <span>NO INBOUND PATH · NO PORT</span>
-              <span>KILL SWITCH · <b>YOURS</b></span>
             </div>
           </div>
         </section>

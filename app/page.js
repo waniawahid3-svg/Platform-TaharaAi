@@ -10,7 +10,7 @@ export default function LoginPage(){
   }, []);
 
   return (
-    <>
+    <div className="lgx">
       
       <div className="scene" aria-hidden="true">
         <span className="aur a"></span>
@@ -164,6 +164,6 @@ export default function LoginPage(){
       </div>
       
       
-    </>
+    </div>
   );
 }

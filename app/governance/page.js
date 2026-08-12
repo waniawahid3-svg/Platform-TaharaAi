@@ -23,6 +23,7 @@ export default function GovernancePage(){
           <div className="links">
             <a data-i18n="nOverview" href="/overview">Overview</a>
             <a className="on" data-i18n="nGov" href="#">Governance</a>
+            <a data-i18n="nFw" href="/framework">Frameworks</a>
             <a data-i18n="nDisc" href="#">Discovery</a>
             <a data-i18n="nAdv" href="#">Adversarial</a>
             <a data-i18n="nGuard" href="#">Guardrails</a>

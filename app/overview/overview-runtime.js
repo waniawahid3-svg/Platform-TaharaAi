@@ -93,7 +93,7 @@ export function initOverview(){
 (function(){
   var STRINGS = {
     en: {
-      nOverview:"Overview", nGov:"Governance", nDisc:"Discovery", nAdv:"Adversarial", nPii:"PII", nGuard:"Guardrails",
+      nOverview:"Overview", nGov:"Governance", nFw:"Frameworks", nDisc:"Discovery", nAdv:"Adversarial", nPii:"PII", nGuard:"Guardrails",
       ctaSm:"Start assessment", signout:"Sign out",
       eyeHero:"Continuous AI assurance",
       display:"Trust is not declared.<br>It is <em>demonstrated.</em>",
@@ -126,7 +126,7 @@ export function initOverview(){
       a1:"Config, IAM, registry metadata", a2:"Log <b>completeness</b>, not contents", a3:"Aggregate metrics you already compute"
     },
     ar: {
-      nOverview:"\u0646\u0638\u0631\u0629 \u0639\u0627\u0645\u0629", nGov:"\u0627\u0644\u062d\u0648\u0643\u0645\u0629", nDisc:"\u0627\u0644\u0627\u0633\u062a\u0643\u0634\u0627\u0641", nAdv:"\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0639\u062f\u0627\u0626\u064a", nPii:"\u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629", nGuard:"\u062d\u0648\u0627\u062c\u0632 \u0627\u0644\u062d\u0645\u0627\u064a\u0629",
+      nOverview:"\u0646\u0638\u0631\u0629 \u0639\u0627\u0645\u0629", nGov:"\u0627\u0644\u062d\u0648\u0643\u0645\u0629", nFw:"\u0627\u0644\u0623\u064f\u0637\u0631", nDisc:"\u0627\u0644\u0627\u0633\u062a\u0643\u0634\u0627\u0641", nAdv:"\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0639\u062f\u0627\u0626\u064a", nPii:"\u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629", nGuard:"\u062d\u0648\u0627\u062c\u0632 \u0627\u0644\u062d\u0645\u0627\u064a\u0629",
       ctaSm:"\u0627\u0628\u062f\u0623 \u0627\u0644\u062a\u0642\u064a\u064a\u0645", signout:"\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c",
       eyeHero:"\u0627\u0644\u062a\u0623\u0645\u064a\u0646 \u0627\u0644\u0645\u0633\u062a\u0645\u0631 \u0644\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a",
       display:"\u0627\u0644\u062b\u0642\u0629 \u0644\u0627 \u062a\u064f\u0639\u0644\u0646.<br>\u0628\u0644 <em>\u062a\u064f\u062b\u0628\u064e\u062a.</em>",

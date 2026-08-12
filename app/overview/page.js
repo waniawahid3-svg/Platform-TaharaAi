@@ -27,6 +27,7 @@ export default function OverviewPage(){
           <div className="links">
             <a className="on" data-i18n="nOverview" href="#">Overview</a>
             <a data-i18n="nGov" href="/governance">Governance</a>
+            <a data-i18n="nFw" href="/framework">Frameworks</a>
             <a data-i18n="nDisc" href="#">Discovery</a>
             <a data-i18n="nAdv" href="#">Adversarial</a>
             <a data-i18n="nGuard" href="#">Guardrails</a>
@@ -40,7 +41,7 @@ export default function OverviewPage(){
               <button type="button" data-lang="en" aria-pressed="true">EN</button>
               <button type="button" data-lang="ar" aria-pressed="false">عربي</button>
             </div>
-            <a className="cta-sm" data-i18n="ctaSm" href="#">Start assessment</a>
+            <a className="cta-sm" data-i18n="ctaSm" href="/governance">Start assessment</a>
             <a className="out" data-i18n="signout" href="/">Sign out</a>
           </div>
         </div>
@@ -57,7 +58,7 @@ export default function OverviewPage(){
               The day a control stops operating, you find out. Not the auditor.
             </p>
             <div className="cta-row" data-rv style={{transitionDelay:".26s"}}>
-              <a className="btn pri" data-i18n="cta1" href="#">Start an assessment →</a>
+              <a className="btn pri" data-i18n="cta1" href="/governance">Start an assessment →</a>
               <a className="btn" data-i18n="cta2" href="#how">See how it works</a>
             </div>
             <div className="fw-chips" data-rv style={{transitionDelay:".32s"}}>

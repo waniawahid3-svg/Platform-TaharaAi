@@ -428,7 +428,7 @@ function buildSealHTML(size, ring, core){
 (function(){
   var STRINGS = {
     en:{
-      nOverview:"Overview", nGov:"Governance", nDisc:"Discovery", nAdv:"Adversarial", nGuard:"Guardrails", signout:"Sign out",
+      nOverview:"Overview", nGov:"Governance", nFw:"Frameworks", nDisc:"Discovery", nAdv:"Adversarial", nGuard:"Guardrails", signout:"Sign out",
       crumb:"\u2190 ALL FRAMEWORKS",
       eyeChain:"How a provision becomes a monitored control",
       h2Chain:"Obligation \u2192 Control \u2192 Probe \u2192 Evidence.",
@@ -442,7 +442,7 @@ function buildSealHTML(size, ring, core){
       noteT2:"The full control library is compiled, hash-pinned and frozen at build time. Every provision gets the same four-stage treatment, and the build fails if any rule reads a profile field that was never declared."
     },
     ar:{
-      nOverview:"\u0646\u0638\u0631\u0629 \u0639\u0627\u0645\u0629", nGov:"\u0627\u0644\u062d\u0648\u0643\u0645\u0629", nDisc:"\u0627\u0644\u0627\u0633\u062a\u0643\u0634\u0627\u0641", nAdv:"\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0639\u062f\u0627\u0626\u064a", nGuard:"\u062d\u0648\u0627\u062c\u0632 \u0627\u0644\u062d\u0645\u0627\u064a\u0629", signout:"\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c",
+      nOverview:"\u0646\u0638\u0631\u0629 \u0639\u0627\u0645\u0629", nGov:"\u0627\u0644\u062d\u0648\u0643\u0645\u0629", nFw:"\u0627\u0644\u0623\u064f\u0637\u0631", nDisc:"\u0627\u0644\u0627\u0633\u062a\u0643\u0634\u0627\u0641", nAdv:"\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0639\u062f\u0627\u0626\u064a", nGuard:"\u062d\u0648\u0627\u062c\u0632 \u0627\u0644\u062d\u0645\u0627\u064a\u0629", signout:"\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c",
       crumb:"\u2192 \u0643\u0644 \u0627\u0644\u0623\u064f\u0637\u0631",
       eyeChain:"\u0643\u064a\u0641 \u064a\u0635\u0628\u062d \u0627\u0644\u0628\u0646\u062f \u0636\u0627\u0628\u0637\u064b\u0627 \u0645\u064f\u0631\u0627\u0642\u064e\u0628\u064b\u0627",
       h2Chain:"\u0627\u0644\u062a\u0632\u0627\u0645 \u2190 \u0636\u0627\u0628\u0637 \u2190 \u0645\u0633\u0628\u0627\u0631 \u2190 \u062f\u0644\u064a\u0644.",

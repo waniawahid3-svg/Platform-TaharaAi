@@ -91,6 +91,10 @@ export default function LoginPage(){
         {/* ═══════════ RIGHT — sign-in box unchanged ═══════════ */}
         <section className="right">
           <div className="right-top">
+            <button className="theme-tg" id="themeTg" type="button" aria-label="Switch theme" title="Theme">
+              <svg className="ic-sun" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" strokeWidth="2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+              <svg className="ic-moon" viewBox="0 0 24 24" fill="none"><path d="M20.6 14.2A8.6 8.6 0 0 1 9.8 3.4a8.6 8.6 0 1 0 10.8 10.8Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
+            </button>
             <div className="lang" role="group" aria-label="Language">
               <button type="button" data-lang="en" aria-pressed="true">EN</button>
               <button type="button" data-lang="ar" aria-pressed="false">عربي</button>

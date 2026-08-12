@@ -19,7 +19,7 @@ export default function OverviewPage(){
       {/* ═══ NAV ═══ */}
       <nav className="nav">
         <div className="nav-in">
-          <a className="brand" href="/overview">
+          <a className="brand" href="#">
             <img src="https://www.taharaai.com/logo.png" alt="" />
             <svg viewBox="0 0 48 44" fill="none" style={{display:"none"}}><path d="M24 24 4 32l20 8 20-8-20-8Z" fill="#8FB4F5" opacity=".9"/><path d="M24 14 4 22l20 8 20-8-20-8Z" fill="#4E7EE6"/><path d="M24 4 4 12l20 8 20-8L24 4Z" fill="#1E4CA8"/><path d="m18.8 12 3.7 3.4 6.8-6.3" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             <span className="brand-t"><b>Tahara AI</b><i>CONTINUOUS ASSURANCE</i></span>
@@ -32,6 +32,10 @@ export default function OverviewPage(){
             <a data-i18n="nPii" href="#">PII</a>
           </div>
           <div className="nav-r">
+            <button className="theme-tg" id="themeTg" type="button" aria-label="Switch theme" title="Theme">
+              <svg className="ic-moon" viewBox="0 0 24 24" fill="none"><path d="M20.6 14.2A8.6 8.6 0 0 1 9.8 3.4a8.6 8.6 0 1 0 10.8 10.8Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
+              <svg className="ic-sun" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" strokeWidth="2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+            </button>
             <div className="lang" role="group" aria-label="Language">
               <button type="button" data-lang="en" aria-pressed="true">EN</button>
               <button type="button" data-lang="ar" aria-pressed="false">عربي</button>

@@ -1,10 +1,9 @@
-/* Overview page behaviour + EN/AR i18n, ported 1:1 from the approved design file. */
+/* Overview page behaviour + i18n + theme toggle, ported from the approved design file. */
 export function initOverview(){
   const _ios = [];
   let _navHandler = null;
   function trackIO(io){ _ios.push(io); return io; }
 
-  /* logo fallback wiring (replaces inline onerror) */
   document.querySelectorAll(".ovx img").forEach(function(img){
     function fb(){
       img.style.display = "none";
@@ -187,6 +186,19 @@ export function initOverview(){
   var saved = "en";
   try { saved = localStorage.getItem("tahara-lang") || "en"; } catch(e){}
   if (saved === "ar") applyLang("ar");
+})();
+
+/* ═══ theme toggle — shared platform key ═══ */
+(function(){
+  var KEY = "tahara-theme";
+  var btn = document.getElementById("themeTg");
+  function apply(t){
+    document.documentElement.dataset.theme = t;
+    try{ localStorage.setItem(KEY, t); }catch(e){}
+  }
+  if (btn) btn.addEventListener("click", function(){
+    apply(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+  });
 })();
 
 

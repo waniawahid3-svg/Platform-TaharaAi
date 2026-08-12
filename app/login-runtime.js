@@ -157,8 +157,7 @@ form.addEventListener("submit", async (e)=>{
     submitBtn.classList.add("success");
     btnKey = "ok"; btnLabel.textContent = STRINGS[lang].ok;
     setBanner("redirect","success");
-    /* when a real dashboard exists, the backend returns data.redirect:
-       if (data.redirect) window.location.assign(data.redirect);      */
+    if (data.redirect) setTimeout(()=>{ window.location.assign(data.redirect); }, 900);
   } else {
     submitBtn.disabled = false;
     btnKey = "login"; btnLabel.textContent = STRINGS[lang].login;
@@ -651,11 +650,25 @@ function schedule(){
   spawnPulse();
   setTimeout(schedule, 620 + Math.random()*650);
 }
+/* ── Auto-fit: if the layout is taller than the window, scale it down
+      proportionally so the whole page always fits with zero scrolling. ── */
+function fitViewport(){
+  const layout = document.querySelector(".layout");
+  if (!layout) return;
+  layout.style.zoom = "";
+  const need = layout.scrollHeight;
+  const have = window.innerHeight;
+  if (need > have && "zoom" in layout.style){
+    layout.style.zoom = Math.max(0.78, have/need).toFixed(3);
+  }
+}
 function sceneReflow(){
+  fitViewport();
   measure(); seedAmbient(); placeSats(); pulses = [];
   if (reduceMotion) drawScene(performance.now());
 }
 function start(){
+  fitViewport();
   measure(); seedAmbient(); placeSats();
   if (reduceMotion){ drawScene(performance.now()); return; }
   running = true;

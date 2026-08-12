@@ -23,7 +23,7 @@ export async function POST(request) {
     return NextResponse.json({
       ok: true,
       user: { email },
-      redirect: "/dashboard"   // frontend will follow this once a dashboard exists
+      redirect: "/overview"
     });
   }
 

@@ -13,6 +13,7 @@
     "jose": "^6.2.8",
     "mysql2": "^3.23.3",
     "next": "14.2.15",
+    "nodemailer": "^9.0.5",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "resend": "^6.19.0",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^26.2.0",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19.2.18",
     "typescript": "^5.5.4"
   }

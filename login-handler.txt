@@ -1,0 +1,55 @@
+﻿
+LineNumber Line                                                                                          
+---------- ----                                                                                          
+         7   const t0 = performance.now(), DUR = 450;                                                    
+        20 export function initLogin(){                                                                  
+        79     login:"Log in →", signing:"Logging in…", ok:"Welcome back ✓",                             
+        85     redirect:"Logged in — taking you to your workspace…",                                     
+        94     login:"تسجيل الدخول ←", signing:"جارٍ تسجيل الدخول…", ok:"مرحبًا بعودتك ✓",               
+       100     redirect:"تم تسجيل الدخول — جارٍ نقلك إلى مساحة عملك…",                                   
+       105 let btnKey = "login";                                                                         
+       106 let bannerKey = null;                                                                         
+       121   if (bannerKey) banner.textContent = t[bannerKey];                                           
+       149 /* ═══════════════ Submit demo (8+ chars → success) ═══════════════ */                        
+       150 const form = document.getElementById("form");                                                 
+       151 const banner = document.getElementById("banner");                                             
+       152 const submitBtn = document.getElementById("submit");                                          
+       155 function setBanner(key, kind){                                                                
+       156   bannerKey = key;                                                                            
+       157   banner.className = "banner show " + kind;                                                   
+       158   banner.textContent = STRINGS[lang][key];                                                    
+       160 form.addEventListener("submit", async (e)=>{                                                  
+       167     banner.textContent = "Please enter email and password.";                                  
+       168     banner.className = "banner error";                                                        
+       172   submitBtn.disabled = true;                                                                  
+       173   submitBtn.classList.add("loading");                                                         
+       174   btnKey = "signing";                                                                         
+       186     if (!res.ok) {                                                                            
+       187       banner.textContent = data.error || STRINGS[lang].err;                                   
+       188       banner.className = "banner error";                                                      
+       189       submitBtn.disabled = false;                                                             
+       190       submitBtn.classList.remove("loading");                                                  
+       191       btnKey = "login";                                                                       
+       197     banner.textContent = STRINGS[lang].ok;                                                    
+       198     banner.className = "banner success";                                                      
+       199     submitBtn.classList.remove("loading");                                                    
+       200     submitBtn.classList.add("success");                                                       
+       201     btnKey = "ok";                                                                            
+       202     btnLabel.textContent = STRINGS[lang].ok;                                                  
+       209     banner.textContent = "Network error. Please try again.";                                  
+       210     banner.className = "banner error";                                                        
+       211     submitBtn.disabled = false;                                                               
+       212     submitBtn.classList.remove("loading");                                                    
+       213     btnKey = "login";                                                                         
+       303   ctx.setTransform(DPR,0,0,DPR,0,0);                                                          
+       338     let x=CX, y=CY, ok=false;                                                                 
+       339     for (let tries=0; tries<90 && !ok; tries++){                                              
+       348       ok = dC > RG+64 &&                                                                      
+       351       if (ok) placed.push(rect);                                                              
+       353     if (!ok) continue;   /* drop rather than overlap — clean beats crowded */                 
+       387     born: performance.now(),                                                                  
+       485 function onCycle(){ pushToast("info", "PASS", "monitor.cycle · drift:none", "grounding:ok"); }
+       749   if (reduceMotion) drawScene(performance.now());                                             
+       754   if (reduceMotion){ drawScene(performance.now()); return; }                                  
+
+

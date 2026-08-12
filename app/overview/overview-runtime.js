@@ -1,19 +1,19 @@
-/* Overview page behaviour + i18n + theme toggle, ported from the approved design file. */
+/* Ported from the approved design file. */
 export function initOverview(){
   const _ios = [];
-  let _navHandler = null;
-  function trackIO(io){ _ios.push(io); return io; }
+  const _winHandlers = [];
+  const _origIO = window.IntersectionObserver;
+  const _trackedIO = function(cb, opts){ const io = new _origIO(cb, opts); _ios.push(io); return io; };
+  window.IntersectionObserver = _trackedIO;
+  const _origAdd = window.addEventListener.bind(window);
+  window.addEventListener = function(t, fn, o){ _winHandlers.push([t, fn, o]); return _origAdd(t, fn, o); };
+  try{
 
   document.querySelectorAll(".ovx img").forEach(function(img){
-    function fb(){
-      img.style.display = "none";
-      const f = img.nextElementSibling;
-      if (f && f.tagName.toLowerCase() === "svg") f.style.display = "block";
-    }
+    function fb(){ img.style.display="none"; var f=img.nextElementSibling; if (f && f.tagName.toLowerCase()==="svg") f.style.display="block"; }
     img.addEventListener("error", fb);
     if (img.complete && img.naturalWidth === 0) fb();
   });
-
 
 /* ═══ the assurance seal — precision certification mark ═══ */
 (function(){
@@ -59,14 +59,17 @@ export function initOverview(){
 
 /* ═══ scroll reveal ═══ */
 (function(){
-  var io = trackIO(new IntersectionObserver(function(es){
+  var io = new IntersectionObserver(function(es){
     es.forEach(function(e){ if (e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
-  }, {threshold:.18}));
+  }, {threshold:.18});
   document.querySelectorAll("[data-rv]").forEach(function(el){ io.observe(el); });
 
   var nav = document.querySelector(".nav");
-  _navHandler = function(){ nav.classList.toggle("scrolled", window.scrollY > 8); };
-  window.addEventListener("scroll", _navHandler, {passive:true});
+  window.addEventListener("scroll", function(){
+    nav.classList.toggle("scrolled", window.scrollY > 8);
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    nav.style.setProperty("--sp", max > 0 ? Math.min(1, window.scrollY / max) : 0);
+  }, {passive:true});
 })();
 
 /* ═══ live tape ═══ */
@@ -90,7 +93,7 @@ export function initOverview(){
 (function(){
   var STRINGS = {
     en: {
-      nOverview:"Overview", nGov:"Governance", nDisc:"Discovery", nAdv:"Adversarial", nPii:"PII",
+      nOverview:"Overview", nGov:"Governance", nDisc:"Discovery", nAdv:"Adversarial", nPii:"PII", nGuard:"Guardrails",
       ctaSm:"Start assessment", signout:"Sign out",
       eyeHero:"Continuous AI assurance",
       display:"Trust is not declared.<br>It is <em>demonstrated.</em>",
@@ -117,12 +120,13 @@ export function initOverview(){
       s1g:"Start an assessment <i>\u2192</i>", s2g:"View posture <i>\u2192</i>", s3g:"View log <i>\u2192</i>",
       eyeAcc:"Access", h2Acc:"We never hold your keys.",
       subAcc:"The collector runs inside your boundary, under your credentials.",
-      denyH:"NEVER TOUCHES", allowH:"READS ONLY",
+      accT:"Zero custody",
+      accSum:"Runs under your credentials, inside your boundary. <b>We never hold your keys.</b>",
       d1:"Production inference payloads", d2:"Personal data of any kind", d3:"Model weights", d4:"Any write access, anywhere",
-      a1:"Config, IAM, registry metadata", a2:"Log <b>&nbsp;completeness</b>, not contents", a3:"Aggregate metrics you already compute"
+      a1:"Config, IAM, registry metadata", a2:"Log <b>completeness</b>, not contents", a3:"Aggregate metrics you already compute"
     },
     ar: {
-      nOverview:"\u0646\u0638\u0631\u0629 \u0639\u0627\u0645\u0629", nGov:"\u0627\u0644\u062d\u0648\u0643\u0645\u0629", nDisc:"\u0627\u0644\u0627\u0633\u062a\u0643\u0634\u0627\u0641", nAdv:"\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0639\u062f\u0627\u0626\u064a", nPii:"\u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629",
+      nOverview:"\u0646\u0638\u0631\u0629 \u0639\u0627\u0645\u0629", nGov:"\u0627\u0644\u062d\u0648\u0643\u0645\u0629", nDisc:"\u0627\u0644\u0627\u0633\u062a\u0643\u0634\u0627\u0641", nAdv:"\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0639\u062f\u0627\u0626\u064a", nPii:"\u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629", nGuard:"\u062d\u0648\u0627\u062c\u0632 \u0627\u0644\u062d\u0645\u0627\u064a\u0629",
       ctaSm:"\u0627\u0628\u062f\u0623 \u0627\u0644\u062a\u0642\u064a\u064a\u0645", signout:"\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c",
       eyeHero:"\u0627\u0644\u062a\u0623\u0645\u064a\u0646 \u0627\u0644\u0645\u0633\u062a\u0645\u0631 \u0644\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a",
       display:"\u0627\u0644\u062b\u0642\u0629 \u0644\u0627 \u062a\u064f\u0639\u0644\u0646.<br>\u0628\u0644 <em>\u062a\u064f\u062b\u0628\u064e\u062a.</em>",
@@ -149,7 +153,8 @@ export function initOverview(){
       s1g:"\u0627\u0628\u062f\u0623 \u062a\u0642\u064a\u064a\u0645\u064b\u0627 <i>\u2190</i>", s2g:"\u0627\u0639\u0631\u0636 \u0627\u0644\u0648\u0636\u0639 <i>\u2190</i>", s3g:"\u0627\u0639\u0631\u0636 \u0627\u0644\u0633\u062c\u0644 <i>\u2190</i>",
       eyeAcc:"\u0627\u0644\u0648\u0635\u0648\u0644", h2Acc:"\u0644\u0627 \u0646\u062d\u062a\u0641\u0638 \u0628\u0645\u0641\u0627\u062a\u064a\u062d\u0643 \u0623\u0628\u062f\u064b\u0627.",
       subAcc:"\u064a\u0639\u0645\u0644 \u0627\u0644\u0645\u064f\u062c\u0645\u0651\u0639 \u062f\u0627\u062e\u0644 \u0646\u0637\u0627\u0642\u0643\u060c \u0648\u0628\u0635\u0644\u0627\u062d\u064a\u0627\u062a\u0643.",
-      denyH:"\u0644\u0627 \u064a\u0644\u0645\u0633 \u0623\u0628\u062f\u064b\u0627", allowH:"\u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637",
+      accT:"\u062d\u064a\u0627\u0632\u0629 \u0635\u0641\u0631\u064a\u0629",
+      accSum:"\u064a\u0639\u0645\u0644 \u0628\u0635\u0644\u0627\u062d\u064a\u0627\u062a\u0643\u060c \u062f\u0627\u062e\u0644 \u0646\u0637\u0627\u0642\u0643. <b>\u0644\u0627 \u0646\u062d\u062a\u0641\u0638 \u0628\u0645\u0641\u0627\u062a\u064a\u062d\u0643 \u0623\u0628\u062f\u064b\u0627.</b>",
       d1:"\u062d\u0645\u0648\u0644\u0627\u062a \u0627\u0644\u0627\u0633\u062a\u062f\u0644\u0627\u0644 \u0627\u0644\u0625\u0646\u062a\u0627\u062c\u064a\u0629",
       d2:"\u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629 \u0628\u0623\u064a \u0634\u0643\u0644",
       d3:"\u0623\u0648\u0632\u0627\u0646 \u0627\u0644\u0646\u0645\u0627\u0630\u062c",
@@ -201,9 +206,12 @@ export function initOverview(){
   });
 })();
 
-
+  } finally {
+    window.IntersectionObserver = _origIO;
+    window.addEventListener = _origAdd;
+  }
   return function dispose(){
     _ios.forEach(function(io){ io.disconnect(); });
-    if (_navHandler) window.removeEventListener("scroll", _navHandler);
+    _winHandlers.forEach(function(h){ window.removeEventListener(h[0], h[1], h[2]); });
   };
 }

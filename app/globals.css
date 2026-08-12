@@ -451,8 +451,7 @@
   }
 
 /* ═══════════════════════════════════════════════════════════════
-   OVERVIEW — post-login page (light Tahara theme), scoped under .ovx
-   Ported from the approved design file.
+   OVERVIEW — post-login page (light Tahara theme + EN/AR), scoped under .ovx
    ═══════════════════════════════════════════════════════════════ */
 
 .ovx{
@@ -715,7 +714,7 @@
 /* left — the verdict */
 .ovx .fx-v{
   position:relative;
-  padding:28px 28px 26px;border-right:1px solid var(--line);
+  padding:28px 28px 26px;border-inline-end:1px solid var(--line);
   background:
     radial-gradient(60% 40% at 0% 0%, rgba(94,231,196,.08), transparent 70%),
     linear-gradient(180deg,#FAFCFF,#F5F9FF);
@@ -724,8 +723,8 @@
 .ovx .fx-v::before,.ovx .fx-v::after{
   content:"";position:absolute;width:9px;height:9px;border:1.5px solid var(--acc);opacity:.45;
 }
-.ovx .fx-v::before{top:10px;left:10px;border-right:0;border-bottom:0}
-.ovx .fx-v::after{bottom:10px;left:10px;border-right:0;border-top:0}
+.ovx .fx-v::before{top:10px;inset-inline-start:10px;border-inline-end:0;border-bottom:0}
+.ovx .fx-v::after{bottom:10px;inset-inline-start:10px;border-inline-end:0;border-top:0}
 .ovx .fx-v > *{
   opacity:0;transform:translateY(7px);
   transition:opacity .5s cubic-bezier(.2,.8,.2,1),transform .5s cubic-bezier(.2,.8,.2,1);
@@ -799,7 +798,7 @@
 .ovx .estate code{font-family:var(--font-mono);color:var(--badc)}
 .ovx .emeta{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.06em;color:var(--ink-40);white-space:nowrap}
 .ovx .erow.real{
-  padding-left:19px;overflow:hidden;
+  padding-inline-start:19px;overflow:hidden;
   background:linear-gradient(90deg,#FDF2EF,#FDF8F6);
   border:1px solid rgba(192,68,46,.22);
   box-shadow:0 10px 22px -16px rgba(192,68,46,.4);
@@ -814,7 +813,7 @@
 .ovx .find.in .estate b{animation:bFlash 1.3s 1s ease both;border-radius:4px;padding:0 2px}
 @keyframes bFlash{0%{background:rgba(192,68,46,.3)}100%{background:transparent}}
 .ovx .erow.real::before{
-  content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;
+  content:"";position:absolute;inset-inline-start:0;top:8px;bottom:8px;width:3px;border-radius:3px;
   background:linear-gradient(#D25A42,#C0442E);
 }
 .ovx .erow.real:hover{background:linear-gradient(90deg,#FCEEE9,#FDF5F2);border-color:rgba(192,68,46,.32)}
@@ -879,7 +878,7 @@
   position:relative;margin:32px auto 0;max-width:900px;
   background:var(--card);border:1px solid var(--line-2);border-radius:18px;overflow:hidden;
   box-shadow:0 1px 2px rgba(6,36,81,.05), 0 24px 52px -28px rgba(6,36,81,.35);
-  text-align:left;
+  text-align:start;
 }
 /* deny→allow split encoded in the top hairline, mirroring the finding plate */
 .ovx .acard::before{
@@ -962,6 +961,33 @@
   display:flex;justify-content:space-between;align-items:center;
   font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;color:var(--ink-40);
 }
+
+/* ═══ language toggle ═══ */
+.ovx .lang{display:flex;border:1px solid var(--line-2);border-radius:999px;overflow:hidden;background:#fff}
+.ovx .lang button{
+  font-family:var(--font-ui);font-size:12.5px;font-weight:500;color:var(--ink-55);
+  padding:6px 14px;border:0;background:none;cursor:pointer;
+}
+.ovx .lang button[aria-pressed="true"]{
+  background:linear-gradient(160deg,var(--navy1),var(--navy2));color:#fff;
+}
+.ovx .lang button:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+
+/* ═══ RTL ═══ */
+.ovx[dir="rtl"]{--font-ui:'Noto Sans Arabic','Inter',system-ui,sans-serif}
+/* brand lockup and technical readouts never mirror */
+[dir="rtl"] .brand,
+[dir="rtl"] .fw-chips,
+[dir="rtl"] .tape-i,
+[dir="rtl"] .emeta,
+[dir="rtl"] .ameta,
+[dir="rtl"] .fx-id,
+[dir="rtl"] .fx-refs,
+[dir="rtl"] .foot,
+.ovx[dir="rtl"] .eop.ne i{direction:ltr}
+.ovx[dir="rtl"] .deny .ai{transform:translateX(12px)}
+.ovx[dir="rtl"] .allow .ai{transform:translateX(-12px)}
+.ovx[dir="rtl"] .mod:hover .go i{transform:translateX(-4px)}
 
 @media(max-width:980px){
   .ovx .hero{grid-template-columns:1fr;gap:36px;padding:44px 0}

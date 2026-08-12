@@ -44,11 +44,12 @@ export async function POST(req: Request) {
 
     const token = await createToken({ userId: user.id, email: user.work_email });
     const res = NextResponse.json({
+      redirect: "/overview",
       user: {
         id: user.id,
         fullName: user.full_name,
-        organisation: user.organisation,
         workEmail: user.work_email,
+        organisation: user.organisation,
       },
     });
     res.cookies.set(SESSION_COOKIE, token, cookieOptions);

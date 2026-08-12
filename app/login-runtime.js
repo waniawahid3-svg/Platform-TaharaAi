@@ -176,9 +176,9 @@ form.addEventListener("submit", async (e)=>{
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: document.getElementById("email").value.trim(),
+        workEmail: document.getElementById("email").value.trim(),
         password: pwInput.value,
-        remember: document.getElementById("remember").checked
+        rememberMe: document.getElementById("remember").checked
       })
     });
     ok = res.ok;

@@ -78,7 +78,7 @@ const STRINGS = {
     keep:"Keep me signed in", forgot:"Forgot password",
     login:"Log in →", signing:"Logging in…", ok:"Welcome back ✓",
     noacc:"Don't have access?", contact:"Contact your administrator",
-    demo:"Demo interface — nothing is sent.",
+    demo:"Secure login powered by Tahara AI",
     caps:"Caps Lock is on",
     terms:"Terms", privacy:"Privacy notice", copy:"© 2026 Tahara AI",
     err:"That email and password don't match. Try again or reset your password.",
@@ -159,45 +159,59 @@ function setBanner(key, kind){
 }
 form.addEventListener("submit", async (e)=>{
   e.preventDefault();
-  if (!form.reportValidity()) return;
-  banner.className = "banner"; bannerKey = null;
+  const email = document.getElementById("email")?.value.trim();
+  const password = document.getElementById("password")?.value.trim();
+  const remember = document.getElementById("remember")?.checked || false;
+
+  if (!email || !password) {
+    banner.textContent = "Please enter email and password.";
+    banner.className = "banner error";
+    return;
+  }
+
   submitBtn.disabled = true;
   submitBtn.classList.add("loading");
-  btnKey = "signing"; btnLabel.textContent = STRINGS[lang].signing;
+  btnKey = "signing";
+  btnLabel.textContent = STRINGS[lang].signing;
 
-  /* ── BACKEND SEAM ─────────────────────────────────────────────
-     Calls POST /api/auth/login — see API-CONTRACT.md.
-     The placeholder route in app/api/auth/login/route.js mimics
-     the old demo (8+ char password succeeds) until the backend
-     developer replaces it with real authentication.            */
-  let ok = false, data = {};
   try {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: document.getElementById("email").value.trim(),
-        password: pwInput.value,
-        remember: document.getElementById("remember").checked
-      })
+      credentials: "include",
+      body: JSON.stringify({ workEmail: email, password, rememberMe: remember })
     });
-    ok = res.ok;
-    data = await res.json().catch(()=>({}));
-  } catch (err) {
-    ok = false;
-  }
+    const data = await res.json();
 
-  submitBtn.classList.remove("loading");
-  if (ok){
+    if (!res.ok) {
+      banner.textContent = data.error || STRINGS[lang].err;
+      banner.className = "banner error";
+      submitBtn.disabled = false;
+      submitBtn.classList.remove("loading");
+      btnKey = "login";
+      btnLabel.textContent = STRINGS[lang].login;
+      return;
+    }
+
+    // Success
+    banner.textContent = STRINGS[lang].ok;
+    banner.className = "banner success";
+    submitBtn.classList.remove("loading");
     submitBtn.classList.add("success");
-    btnKey = "ok"; btnLabel.textContent = STRINGS[lang].ok;
-    setBanner("redirect","success");
-    if (data.redirect) setTimeout(()=>{ window.location.assign(data.redirect); }, 900);
-  } else {
+    btnKey = "ok";
+    btnLabel.textContent = STRINGS[lang].ok;
+
+    setTimeout(() => {
+      window.location.href = "/overview";
+    }, 800);
+
+  } catch (err) {
+    banner.textContent = "Network error. Please try again.";
+    banner.className = "banner error";
     submitBtn.disabled = false;
-    btnKey = "login"; btnLabel.textContent = STRINGS[lang].login;
-    setBanner("err","error");
-    pwInput.value = ""; pwInput.focus();
+    submitBtn.classList.remove("loading");
+    btnKey = "login";
+    btnLabel.textContent = STRINGS[lang].login;
   }
 });
 

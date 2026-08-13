@@ -74,7 +74,7 @@ function $(id){ return document.getElementById(id); }
 function rows(){ return Array.prototype.slice.call(document.querySelectorAll(".fw")); }
 
 function go(n){
-  ["p1","p2","pSent","p3"].forEach(function(id){ $(id).classList.remove("on"); });
+  ["p1","p2","pSent","pVerify","p3"].forEach(function(id){ $(id).classList.remove("on"); });
   $(n).classList.add("on");
   var map = {p1:1,p2:2,pSent:2,p3:3};
   var st = map[n];
@@ -221,6 +221,7 @@ $("verBtn").addEventListener("click", function(){
   $("verCont").style.display = "none";
   $("verBack").style.display = "";
   applyLang(LANG);
+  $("verEmOut").textContent = em;
   go("pVerify");
   if (verTimer) clearTimeout(verTimer);
   verTimer = setTimeout(function(){

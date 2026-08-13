@@ -220,7 +220,13 @@ export default function GovernancePage(){
                     <input type="email" id="reqEm" placeholder="you@company.com" dir="ltr" />
                     <button className="btn pri" id="reqBtn" data-i18n="reqCta">Request onboarding</button>
                   </div></div>
+                  <div className="verwrap" id="verWrap"><div className="reqin">
+                    <p data-i18n="verP">A specific-framework assessment is issued to a named organisation. Verify a work email to continue.</p>
+                    <input type="email" id="verEm" placeholder="you@company.com" dir="ltr" />
+                    <button className="btn pri" id="verBtn" data-i18n="verCta">Verify email</button>
+                  </div></div>
                   <button className="btn pri cta-out" id="goBtn" style={{width:"100%",justifyContent:"center"}} aria-disabled="true" data-i18n="beginCta">Begin assessment →</button>
+                  <p className="gohelp" id="goHelp" style={{display:"none"}} data-i18n="goHelp">Verify a work email above to begin.</p>
                 </div>
               </div>
               <button className="back" id="back1" data-i18n="back1">← Change path</button>
@@ -238,6 +244,20 @@ export default function GovernancePage(){
             <div style={{display:"flex",justifyContent:"center",gap:"12px",flexWrap:"wrap"}}>
               <button className="btn" id="backFw" data-i18n="backFw">← Back to frameworks</button>
               <button className="btn pri" id="contIntl" data-i18n="contIntl">Continue with current set →</button>
+            </div>
+          </div>
+        </div>
+      
+        {/* ═══ VERIFY PENDING ═══ */}
+        <div className="panel" id="pVerify">
+          <div className="plate center-plate">
+            <div className="seal-w"><div id="sealVer"></div></div>
+            <h1 className="display" style={{fontSize:"26px"}} id="verHeadline" data-i18n="verHeadPending">Verifying your email.</h1>
+            <p className="lede" style={{margin:"0 auto 8px",fontSize:"13.5px"}} id="verSub" data-i18n="verSubPending">We sent a confirmation link to <b id="verEmOut" style={{color:"var(--acc)"}}></b>. This assessment starts once it is verified.</p>
+            <p style={{fontSize:"12px",color:"var(--ink-40)",marginBottom:"28px"}} id="verFine" data-i18n="verFinePending">Usually a few seconds in this demo. In production, this waits for the actual click.</p>
+            <div style={{display:"flex",justifyContent:"center",gap:"12px",flexWrap:"wrap"}}>
+              <button className="btn" id="verBack" data-i18n="verBack">← Back to frameworks</button>
+              <button className="btn pri" id="verCont" style={{display:"none"}} data-i18n="verContCta">Continue to assessment →</button>
             </div>
           </div>
         </div>

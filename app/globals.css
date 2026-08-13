@@ -1442,6 +1442,17 @@ html[data-theme="dark"] .ovx .mod::before{background:linear-gradient(105deg,tran
 /* onboarding */
 .gvx .reqwrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s cubic-bezier(.2,.8,.2,1),margin-bottom .45s}
 .gvx .reqwrap.on{margin-bottom:13px}
+.gvx .verwrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s cubic-bezier(.2,.8,.2,1),margin-bottom .45s}
+.gvx .verwrap.on{grid-template-rows:1fr;margin-bottom:13px}
+.gvx .verwrap .reqin p{color:var(--ink-55)}
+.gvx .ver-ok{
+  display:none;align-items:center;gap:8px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;
+  color:var(--acc);background:var(--acc-soft);border:1px solid rgba(31,122,92,.3);border-radius:10px;
+  padding:9px 12px;margin-bottom:10px;
+}
+.gvx .ver-ok.on{display:flex}
+.gvx .ver-ok svg{width:13px;height:13px;flex-shrink:0}
+.gvx .gohelp{font-size:10.5px;color:var(--ink-40);text-align:center;margin-top:8px}
 .gvx .reqwrap.on{grid-template-rows:1fr}
 .gvx .reqin{overflow:hidden}
 .gvx .reqin p{font-size:11.5px;color:var(--ink-40);line-height:1.6;margin-bottom:12px}

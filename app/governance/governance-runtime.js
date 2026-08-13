@@ -60,6 +60,7 @@ function buildSeal(mount, size, ring, core){
     '<text x="60" y="70" font-size="26" font-weight="700" text-anchor="middle" fill="#D8F4EA" font-family="Inter,sans-serif">'+core+'</text>'+
     '</svg></div>';
 }
+buildSeal("sealVer", 120, "VERIFYING \u00b7 CONFIRMING \u00b7 PENDING \u00b7 VERIFYING \u00b7 ", "\u2026");
 buildSeal("sealSent", 120, "REQUEST RECEIVED \u00b7 IN QUEUE \u00b7 MAPPING \u00b7 REQUEST RECEIVED \u00b7 ", "\u2713");
 buildSeal("sealGo", 150, "ISO 42001 \u00b7 NIST AI RMF \u00b7 EU AI ACT \u00b7 ISO 23894 \u00b7 ", "R");
 
@@ -95,7 +96,7 @@ function go(n){
   $("contBtn").addEventListener("click", function(){
     /* prepare step 2 for the mode */
     rows().forEach(function(r){ r.classList.remove("sel"); });
-    sel = [];
+    sel = []; VERIFIED = false; VERIFIED_EMAIL = "";
     if (MODE === "master"){
       rows().forEach(function(r){
         if (CORE.indexOf(r.dataset.fw) !== -1) r.classList.add("sel");
@@ -170,7 +171,9 @@ function renderDash(){
   animN($("tN"), c.min);
   $("savPct").textContent = "~"+c.sav+"%";
   $("savBar").style.width = c.sav+"%";
-  $("goBtn").setAttribute("aria-disabled", c.n>0 ? "false" : "true");
+  var gatedNow = MODE === "single" && sel.length > 0 && !VERIFIED;
+  $("goBtn").setAttribute("aria-disabled", (c.n>0 && !gatedNow) ? "false" : "true");
+  $("goHelp").style.display = (gatedNow && c.n>0) ? "block" : "none";
 }
 function renderBasket(){
   var bk = $("basket");
@@ -189,12 +192,56 @@ function renderBasket(){
     });
   });
 }
+var VERIFIED = false, VERIFIED_EMAIL = "";
 function renderReq(){
   var hasReq = sel.some(function(f){ return f.req; });
   $("reqWrap").classList.toggle("on", hasReq);
+  renderVer();
+}
+function renderVer(){
+  var needsVer = MODE === "single" && sel.length > 0;
+  if (!needsVer) VERIFIED = false;
+  $("verWrap").classList.toggle("on", needsVer && !VERIFIED);
+  var c = calc();
+  var gated = needsVer && !VERIFIED;
+  $("goBtn").setAttribute("aria-disabled", (c.n>0 && !gated) ? "false" : "true");
+  $("goHelp").style.display = (gated && c.n>0) ? "block" : "none";
 }
 
 /* request flow */
+var verTimer = null;
+$("verBtn").addEventListener("click", function(){
+  var em = $("verEm").value.trim();
+  if (!em || em.indexOf("@") < 1){ $("verEm").focus(); return; }
+  VERIFIED_EMAIL = em;
+  $("verEmOut").textContent = em;
+  $("verHeadline").setAttribute("data-i18n","verHeadPending");
+  $("verSub").setAttribute("data-i18n","verSubPending");
+  $("verFine").style.display = "";
+  $("verCont").style.display = "none";
+  $("verBack").style.display = "";
+  applyLang(LANG);
+  go("pVerify");
+  if (verTimer) clearTimeout(verTimer);
+  verTimer = setTimeout(function(){
+    VERIFIED = true;
+    renderVer();
+    $("verHeadline").removeAttribute("data-i18n");
+    $("verHeadline").textContent = (I18N[LANG].verHeadDone);
+    $("verSub").removeAttribute("data-i18n");
+    $("verSub").innerHTML = I18N[LANG].verSubDone.replace("{email}", "<b style=\"color:var(--acc)\">" + em + "</b>");
+    $("verFine").style.display = "none";
+    $("verCont").style.display = "";
+  }, 2200);
+});
+$("verBack").addEventListener("click", function(){
+  if (verTimer) clearTimeout(verTimer);
+  go("p2");
+});
+$("verCont").addEventListener("click", function(){
+  go("p2");
+});
+
 $("reqBtn").addEventListener("click", function(){
   var em = $("reqEm").value.trim();
   if (!em || em.indexOf("@") < 1){ $("reqEm").focus(); return; }
@@ -207,7 +254,7 @@ $("backFw").addEventListener("click", function(){ go("p2"); });
 $("contIntl").addEventListener("click", function(){ launch(); });
 
 /* launch */
-$("goBtn").addEventListener("click", launch);
+$("goBtn").addEventListener("click", function(){ if ($("goBtn").getAttribute("aria-disabled") === "true") return; launch(); });
 function launch(){
   var c = calc();
   $("lsFw").textContent = c.n;
@@ -244,6 +291,14 @@ var I18N = {
     bkEmpty:"Nothing selected yet. The master set pre-loads the international core. Add your regions.",
     reqP:"Regional frameworks are onboarded per request. We build the control library and map it into the master set. Leave a work email.",
     reqCta:"Request onboarding", beginCta:"Begin assessment \u2192", back1:"\u2190 Change path",
+    verP:"A specific-framework assessment is issued to a named organisation. Verify a work email to continue.",
+    verCta:"Verify email", goHelp:"Verify a work email above to begin.",
+    verHeadPending:"Verifying your email.",
+    verSubPending:"We sent a confirmation link to <b id=\"verEmOut\" style=\"color:var(--acc)\"></b>. This assessment starts once it is verified.",
+    verFinePending:"Usually a few seconds in this demo. In production, this waits for the actual click.",
+    verBack:"\u2190 Back to frameworks", verContCta:"Continue to assessment \u2192",
+    verHeadDone:"Email verified.",
+    verSubDone:"{email} is confirmed. You can begin the assessment now.",
     sentT:"Request received.",
     sentP1:"We are building the control library for", sentP2:"and mapping it into the master set.",
     sentP3:"We will email", sentP4:"when it is live. Typical turnaround: five working days.",
@@ -278,6 +333,14 @@ var I18N = {
     bkEmpty:"\u0644\u0645 \u064a\u064f\u062d\u062f\u062f \u0634\u064a\u0621 \u0628\u0639\u062f. \u0627\u0644\u0645\u062c\u0645\u0648\u0639\u0629 \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629 \u062a\u062d\u0645\u0651\u0644 \u0627\u0644\u0646\u0648\u0627\u0629 \u0627\u0644\u062f\u0648\u0644\u064a\u0629 \u0645\u0633\u0628\u0642\u064b\u0627. \u0623\u0636\u0641 \u0645\u0646\u0627\u0637\u0642\u0643.",
     reqP:"\u0627\u0644\u0623\u0637\u0631 \u0627\u0644\u0625\u0642\u0644\u064a\u0645\u064a\u0629 \u062a\u064f\u0636\u0627\u0641 \u0639\u0646\u062f \u0627\u0644\u0637\u0644\u0628. \u0646\u0628\u0646\u064a \u0645\u0643\u062a\u0628\u0629 \u0627\u0644\u0636\u0648\u0627\u0628\u0637 \u0648\u0646\u062f\u0645\u062c\u0647\u0627 \u0641\u064a \u0627\u0644\u0645\u062c\u0645\u0648\u0639\u0629 \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629. \u0627\u062a\u0631\u0643 \u0628\u0631\u064a\u062f \u0627\u0644\u0639\u0645\u0644.",
     reqCta:"\u0627\u0637\u0644\u0628 \u0627\u0644\u0625\u0636\u0627\u0641\u0629", beginCta:"\u0627\u0628\u062f\u0623 \u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u2190", back1:"\u2192 \u063a\u064a\u0651\u0631 \u0627\u0644\u0645\u0633\u0627\u0631",
+    verP:"\u064a\u064f\u0635\u062f\u0631 \u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0625\u0637\u0627\u0631 \u0627\u0644\u0645\u062d\u062f\u062f \u0628\u0627\u0633\u0645 \u0645\u0624\u0633\u0633\u0629 \u0645\u062d\u062f\u062f\u0629. \u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0628\u0631\u064a\u062f \u0639\u0645\u0644 \u0644\u0644\u0645\u062a\u0627\u0628\u0639\u0629.",
+    verCta:"\u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0627\u0644\u0628\u0631\u064a\u062f", goHelp:"\u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0628\u0631\u064a\u062f \u0623\u0639\u0644\u0627\u0647 \u0644\u0644\u0628\u062f\u0621.",
+    verHeadPending:"\u062c\u0627\u0631\u064d \u0627\u0644\u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0628\u0631\u064a\u062f\u0643.",
+    verSubPending:"\u0623\u0631\u0633\u0644\u0646\u0627 \u0631\u0627\u0628\u0637 \u062a\u0623\u0643\u064a\u062f \u0625\u0644\u0649 <b id=\"verEmOut\" style=\"color:var(--acc)\"></b>. \u064a\u0628\u062f\u0623 \u0647\u0630\u0627 \u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0628\u0645\u062c\u0631\u062f \u0627\u0644\u062a\u062d\u0642\u0651\u0642.",
+    verFinePending:"\u0639\u0627\u062f\u0629\u064b \u0628\u0636\u0639 \u062b\u0648\u0627\u0646\u064d \u0641\u064a \u0647\u0630\u0647 \u0627\u0644\u0646\u0633\u062e\u0629 \u0627\u0644\u062a\u062c\u0631\u064a\u0628\u064a\u0629. \u0641\u064a \u0627\u0644\u0625\u0646\u062a\u0627\u062c\u060c \u064a\u064f\u0646\u062a\u0638\u0631 \u0627\u0644\u0646\u0642\u0631 \u0627\u0644\u0641\u0639\u0644\u064a.",
+    verBack:"\u2192 \u0639\u0648\u062f\u0629 \u0644\u0644\u0623\u0637\u0631", verContCta:"\u062a\u0627\u0628\u0639 \u0625\u0644\u0649 \u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u2190",
+    verHeadDone:"\u062a\u0645 \u0627\u0644\u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0627\u0644\u0628\u0631\u064a\u062f.",
+    verSubDone:"\u062a\u0645 \u062a\u0623\u0643\u064a\u062f {email}. \u064a\u0645\u0643\u0646\u0643 \u0628\u062f\u0621 \u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0622\u0646.",
     sentT:"\u062a\u0645 \u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0637\u0644\u0628.",
     sentP1:"\u0646\u0628\u0646\u064a \u0645\u0643\u062a\u0628\u0629 \u0627\u0644\u0636\u0648\u0627\u0628\u0637 \u0644\u0640", sentP2:"\u0648\u0646\u062f\u0645\u062c\u0647\u0627 \u0641\u064a \u0627\u0644\u0645\u062c\u0645\u0648\u0639\u0629 \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629.",
     sentP3:"\u0633\u0646\u0631\u0627\u0633\u0644", sentP4:"\u0639\u0646\u062f \u0627\u0644\u062c\u0627\u0647\u0632\u064a\u0629. \u0627\u0644\u0645\u062f\u0629 \u0627\u0644\u0645\u0639\u062a\u0627\u062f\u0629: \u062e\u0645\u0633\u0629 \u0623\u064a\u0627\u0645 \u0639\u0645\u0644.",

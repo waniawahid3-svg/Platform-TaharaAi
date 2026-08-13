@@ -1,5 +1,8 @@
 /* Ported 1:1 from the shipped HTML login page.
    Runs once on mount (called from app/page.js); returns a dispose fn. */
+
+import { loginRequest } from "@/lib/authClient.js";
+  
 function animateSceneTheme(t){
   const target = THEMES_NUM[t] || THEMES_NUM.dark;
   const from = _pclone(CURP);
@@ -172,17 +175,13 @@ form.addEventListener("submit", async (e)=>{
      developer replaces it with real authentication.            */
   let ok = false, data = {};
   try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        workEmail: document.getElementById("email").value.trim(),
-        password: pwInput.value,
-        rememberMe: document.getElementById("remember").checked
-      })
-    });
-    ok = res.ok;
-    data = await res.json().catch(()=>({}));
+    const result = await loginRequest(
+      document.getElementById("email").value.trim(),
+      pwInput.value,
+      document.getElementById("remember").checked
+    );
+    ok = result.ok;
+    data = result.data;
   } catch (err) {
     ok = false;
   }

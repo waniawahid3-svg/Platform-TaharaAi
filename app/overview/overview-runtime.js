@@ -1,4 +1,4 @@
-/* Ported from the approved design file. */
+/* Ported from tahara-overview-redesign-v27.html (approved design file). */
 export function initOverview(){
   const _ios = [];
   const _winHandlers = [];
@@ -15,195 +15,230 @@ export function initOverview(){
     if (img.complete && img.naturalWidth === 0) fb();
   });
 
-/* ═══ the assurance seal — precision certification mark ═══ */
 (function(){
-  var size = 320;
-  /* sized to the r=50 circumference so the ring never overlaps itself */
-  var ring = "ISO 42001 · NIST AI RMF · EU AI ACT · ISO 23894 · ";
-  var ticks = "";
-  for (var i = 0; i < 36; i++){
-    var a = (i * 10) * Math.PI / 180, maj = i % 3 === 0;
-    var r1 = 43.5, r2 = maj ? 40 : 41.8;
-    ticks += '<line class="tick ' + (maj ? 'maj' : '') + '" x1="' + (60 + r1*Math.cos(a)).toFixed(2) +
-             '" y1="' + (60 + r1*Math.sin(a)).toFixed(2) + '" x2="' + (60 + r2*Math.cos(a)).toFixed(2) +
-             '" y2="' + (60 + r2*Math.sin(a)).toFixed(2) + '"/>';
-  }
-  document.getElementById("seal").outerHTML =
-    '<div class="seal" style="width:' + size + 'px;height:' + size + 'px">' +
-    '<svg viewBox="0 0 120 120" width="' + size + '" height="' + size + '">' +
-    '<defs>' +
-    '<path id="sealpath" d="M 60,60 m -50,0 a 50,50 0 1,1 100,0 a 50,50 0 1,1 -100,0"/>' +
-    '<radialGradient id="sealcore" cx="50%" cy="40%" r="65%">' +
-    '<stop offset="0%" stop-color="#0E3D6E"/><stop offset="60%" stop-color="#062A52"/><stop offset="100%" stop-color="#041B3F"/>' +
-    '</radialGradient>' +
-    '</defs>' +
-    '<circle class="rim-o" cx="60" cy="60" r="56"/>' +
-    '<circle class="band" cx="60" cy="60" r="54.5"/>' +
-    '<circle class="band" cx="60" cy="60" r="45.5"/>' +
-    '<g class="ring"><text dy="1.6" textLength="314" lengthAdjust="spacing"><textPath href="#sealpath" startOffset="0" textLength="314" lengthAdjust="spacing">' + ring + '</textPath></text></g>' +
-    '<g class="ticks">' + ticks + '</g>' +
-    '<circle class="rim-i" cx="60" cy="60" r="37.5"/>' +
-    '<circle class="core-glow" cx="60" cy="60" r="29"/>' +
-    '<circle cx="60" cy="60" r="29" fill="url(#sealcore)"/>' +
-    '<circle class="core-r" cx="60" cy="60" r="29"/>' +
-    '<circle class="core-i" cx="60" cy="60" r="25.5"/>' +
-    '<g class="tracer"><circle class="tg" cx="110" cy="60" r="3.6"/><circle class="td" cx="110" cy="60" r="1.5"/></g>' +
-    '<g transform="translate(60,60.5) scale(.62) translate(-24,-22)">' +
-      '<path d="M24 24 4 32l20 8 20-8-20-8Z" fill="#8FB4F5" opacity=".92"/>' +
-      '<path d="M24 14 4 22l20 8 20-8-20-8Z" fill="#4E7EE6"/>' +
-      '<path d="M24 4 4 12l20 8 20-8L24 4Z" fill="#2F6FD8"/>' +
-      '<path d="m18.8 12 3.7 3.4 6.8-6.3" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
-    '</g>' +
-    '</svg></div>';
-})();
+  var root = document.getElementById('thr');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ═══ scroll reveal ═══ */
-(function(){
-  var io = new IntersectionObserver(function(es){
-    es.forEach(function(e){ if (e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
-  }, {threshold:.18});
-  document.querySelectorAll("[data-rv]").forEach(function(el){ io.observe(el); });
+  /* theme */
+  var tb = document.getElementById('themeBtn');
+  function setTheme(t){ root.setAttribute('data-theme', t); try{ localStorage.setItem('tahara-theme', t); }catch(e){} }
+  tb.addEventListener('click', function(){ setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); });
+  try{ var s0 = localStorage.getItem('tahara-theme'); if(s0) setTheme(s0); }catch(e){}
 
-  var nav = document.querySelector(".nav");
-  window.addEventListener("scroll", function(){
-    nav.classList.toggle("scrolled", window.scrollY > 8);
-    var max = document.documentElement.scrollHeight - window.innerHeight;
-    nav.style.setProperty("--sp", max > 0 ? Math.min(1, window.scrollY / max) : 0);
-  }, {passive:true});
-})();
-
-/* ═══ live tape ═══ */
-(function(){
-  var ITEMS = [
-    ["conform","ISO 42001 · 6.1.2","risk assessment: record found, 12 Jul"],
-    ["major","EU AI ACT · Art. 12","log sequence gap: 3 days"],
-    ["conform","ISO 42001 · A.6.2.4","model registry: 4 versions approved"],
-    ["minor","DISCOVERY","IAM drift: 3 non-eng principals on model bucket"],
-    ["conform","EU AI ACT · Art. 15","accuracy 0.94, above declared floor"],
-    ["major","ISO 42001 · 9.2","internal audit: 0 records in 8 months"],
-    ["info","PROBE","PII masking: 1,204 prompts, 0 leaks"]
-  ];
-  var h = ITEMS.concat(ITEMS).map(function(it){
-    return '<span class="tape-i"><span class="dot '+it[0]+'"></span><b>'+it[1]+'</b>&nbsp;'+it[2]+'</span>';
-  }).join('');
-  document.getElementById("tape").innerHTML = h;
-})();
-
-/* ═══ i18n — EN / عربي (shares the login page's saved choice) ═══ */
-(function(){
-  var STRINGS = {
-    en: {
-      nOverview:"Overview", nGov:"Governance", nFw:"Frameworks", nDisc:"Discovery", nAdv:"Adversarial", nPii:"PII", nGuard:"Guardrails",
-      ctaSm:"Start assessment", signout:"Sign out",
-      eyeHero:"Continuous AI assurance",
-      display:"Trust is not declared.<br>It is <em>demonstrated.</em>",
-      lede:"We map your system against the frameworks that bind it, then keep watching. The day a control stops operating, you find out. Not the auditor.",
-      cta1:"Start an assessment \u2192", cta2:"See how it works",
-      eyeHow:"How it works", h2How:"Four movements. One continuous loop.",
-      m1t:"Ingest", m2t:"Interview", m3t:"Discover", m4t:"Assure",
-      m1p:"Upload what you have. The engine extracts only the facts a framework needs, and cites the page.",
-      m2p:"An auditor-grade chatbot asks what the documents didn't say. It follows up.",
-      m3p:"A read-only collector inside your boundary observes what your system actually does.",
-      m4p:"Gap assessment, SoA, risk matrix. Then the loop stays open, and drift raises an alarm.",
-      eyeMethod:"The method", h2Method:"We never trust a single source.",
-      subMethod:"A finding is the <em>delta</em> between what you believe, what you wrote down, and what your system is doing.",
-      fxT:"Model bucket access", sev:"MAJOR NONCONFORMITY",
-      fxSum:"The documented control is not operating. <b>Two findings, one delta.</b>",
-      stClaim:"\u201cModel bucket access is restricted to engineering.\u201d",
-      stDoc:"Access Control Policy v3: least privilege, engineering only.",
-      stReal:"IAM: <b>14 principals</b>, 3 non-engineering, 1 service account with <code>*</code>.",
-      eyeSurf:"Three surfaces", h2Surf:"One engine. Three ways in.",
-      s1t:"Governance", s2t:"Adversarial", s3t:"PII",
-      s1p:"Pick a framework. The chatbot maps it, discovery verifies it, the artefacts write themselves.",
-      s2p:"Continuous red-teaming against the OWASP LLM Top 10, on a schedule, not once a year.",
-      s3p:"Every prompt that carried personal data: masked, blocked, or the one you need to know about.",
-      s1g:"Start an assessment <i>\u2192</i>", s2g:"View posture <i>\u2192</i>", s3g:"View log <i>\u2192</i>",
-      eyeAcc:"Access", h2Acc:"We never hold your keys.",
-      subAcc:"The collector runs inside your boundary, under your credentials.",
-      accT:"Zero custody",
-      accSum:"Runs under your credentials, inside your boundary. <b>We never hold your keys.</b>",
-      d1:"Production inference payloads", d2:"Personal data of any kind", d3:"Model weights", d4:"Any write access, anywhere",
-      a1:"Config, IAM, registry metadata", a2:"Log <b>completeness</b>, not contents", a3:"Aggregate metrics you already compute"
-    },
-    ar: {
-      nOverview:"\u0646\u0638\u0631\u0629 \u0639\u0627\u0645\u0629", nGov:"\u0627\u0644\u062d\u0648\u0643\u0645\u0629", nFw:"\u0627\u0644\u0623\u064f\u0637\u0631", nDisc:"\u0627\u0644\u0627\u0633\u062a\u0643\u0634\u0627\u0641", nAdv:"\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0639\u062f\u0627\u0626\u064a", nPii:"\u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629", nGuard:"\u062d\u0648\u0627\u062c\u0632 \u0627\u0644\u062d\u0645\u0627\u064a\u0629",
-      ctaSm:"\u0627\u0628\u062f\u0623 \u0627\u0644\u062a\u0642\u064a\u064a\u0645", signout:"\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c",
-      eyeHero:"\u0627\u0644\u062a\u0623\u0645\u064a\u0646 \u0627\u0644\u0645\u0633\u062a\u0645\u0631 \u0644\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a",
-      display:"\u0627\u0644\u062b\u0642\u0629 \u0644\u0627 \u062a\u064f\u0639\u0644\u0646.<br>\u0628\u0644 <em>\u062a\u064f\u062b\u0628\u064e\u062a.</em>",
-      lede:"\u0646\u064f\u0637\u0627\u0628\u0642 \u0646\u0638\u0627\u0645\u0643 \u0645\u0639 \u0627\u0644\u0623\u064f\u0637\u0631 \u0627\u0644\u062a\u064a \u062a\u062d\u0643\u0645\u0647\u060c \u062b\u0645 \u0646\u0648\u0627\u0635\u0644 \u0627\u0644\u0645\u0631\u0627\u0642\u0628\u0629. \u064a\u0648\u0645 \u064a\u062a\u0648\u0642\u0641 \u0623\u064a \u0636\u0627\u0628\u0637 \u0639\u0646 \u0627\u0644\u0639\u0645\u0644\u060c \u0623\u0646\u062a \u0645\u0646 \u064a\u0639\u0644\u0645 \u0623\u0648\u0644\u064b\u0627. \u0644\u0627 \u0627\u0644\u0645\u062f\u0642\u0651\u0642.",
-      cta1:"\u0627\u0628\u062f\u0623 \u062a\u0642\u064a\u064a\u0645\u064b\u0627 \u2190", cta2:"\u0643\u064a\u0641 \u064a\u0639\u0645\u0644",
-      eyeHow:"\u0643\u064a\u0641 \u064a\u0639\u0645\u0644", h2How:"\u0623\u0631\u0628\u0639 \u062d\u0631\u0643\u0627\u062a. \u062d\u0644\u0642\u0629 \u0648\u0627\u062d\u062f\u0629 \u0645\u062a\u0635\u0644\u0629.",
-      m1t:"\u0627\u0633\u062a\u064a\u0639\u0627\u0628", m2t:"\u0645\u0642\u0627\u0628\u0644\u0629", m3t:"\u0627\u0633\u062a\u0643\u0634\u0627\u0641", m4t:"\u062a\u0623\u0645\u064a\u0646",
-      m1p:"\u0627\u0631\u0641\u0639 \u0645\u0627 \u0644\u062f\u064a\u0643. \u064a\u0633\u062a\u062e\u0631\u062c \u0627\u0644\u0645\u062d\u0631\u0643 \u0627\u0644\u062d\u0642\u0627\u0626\u0642 \u0627\u0644\u062a\u064a \u064a\u062a\u0637\u0644\u0628\u0647\u0627 \u0627\u0644\u0625\u0637\u0627\u0631 \u0641\u0642\u0637\u060c \u0645\u0639 \u0627\u0644\u0627\u0633\u062a\u0634\u0647\u0627\u062f \u0628\u0627\u0644\u0635\u0641\u062d\u0629.",
-      m2p:"\u0631\u0648\u0628\u0648\u062a \u0645\u062d\u0627\u062f\u062b\u0629 \u0628\u0645\u0633\u062a\u0648\u0649 \u0645\u062f\u0642\u0651\u0642 \u064a\u0633\u0623\u0644 \u0639\u0645\u0651\u0627 \u0644\u0645 \u062a\u0642\u0644\u0647 \u0627\u0644\u0648\u062b\u0627\u0626\u0642\u060c \u0648\u064a\u062a\u0627\u0628\u0639.",
-      m3p:"\u0645\u064f\u062c\u0645\u0651\u0639 \u0644\u0644\u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637 \u062f\u0627\u062e\u0644 \u0646\u0637\u0627\u0642\u0643 \u064a\u0631\u0627\u0642\u0628 \u0645\u0627 \u064a\u0641\u0639\u0644\u0647 \u0646\u0638\u0627\u0645\u0643 \u0641\u0639\u0644\u064b\u0627.",
-      m4p:"\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0641\u062c\u0648\u0627\u062a\u060c \u0648\u0628\u064a\u0627\u0646 \u0627\u0644\u0642\u0627\u0628\u0644\u064a\u0629\u060c \u0648\u0645\u0635\u0641\u0648\u0641\u0629 \u0627\u0644\u0645\u062e\u0627\u0637\u0631. \u062b\u0645 \u062a\u0628\u0642\u0649 \u0627\u0644\u062d\u0644\u0642\u0629 \u0645\u0641\u062a\u0648\u062d\u0629\u060c \u0648\u0623\u064a \u0627\u0646\u062d\u0631\u0627\u0641 \u064a\u0637\u0644\u0642 \u0625\u0646\u0630\u0627\u0631\u064b\u0627.",
-      eyeMethod:"\u0627\u0644\u0645\u0646\u0647\u062c\u064a\u0629", h2Method:"\u0644\u0627 \u0646\u062b\u0642 \u0628\u0645\u0635\u062f\u0631 \u0648\u0627\u062d\u062f \u0623\u0628\u062f\u064b\u0627.",
-      subMethod:"\u0627\u0644\u0646\u062a\u064a\u062c\u0629 \u0647\u064a <em>\u0627\u0644\u0641\u0627\u0631\u0642</em> \u0628\u064a\u0646 \u0645\u0627 \u062a\u0639\u062a\u0642\u062f\u0647\u060c \u0648\u0645\u0627 \u062f\u0648\u0651\u0646\u062a\u0647\u060c \u0648\u0645\u0627 \u064a\u0641\u0639\u0644\u0647 \u0646\u0638\u0627\u0645\u0643.",
-      fxT:"\u0627\u0644\u0648\u0635\u0648\u0644 \u0625\u0644\u0649 \u0645\u0633\u062a\u0648\u062f\u0639 \u0627\u0644\u0646\u0645\u0627\u0630\u062c", sev:"\u0639\u062f\u0645 \u0645\u0637\u0627\u0628\u0642\u0629 \u062c\u0633\u064a\u0645",
-      fxSum:"\u0627\u0644\u0636\u0627\u0628\u0637 \u0627\u0644\u0645\u0648\u062b\u0651\u0642 \u0644\u0627 \u064a\u0639\u0645\u0644. <b>\u0646\u062a\u064a\u062c\u062a\u0627\u0646\u060c \u0641\u0627\u0631\u0642 \u0648\u0627\u062d\u062f.</b>",
-      stClaim:"\u00ab\u0627\u0644\u0648\u0635\u0648\u0644 \u0625\u0644\u0649 \u0645\u0633\u062a\u0648\u062f\u0639 \u0627\u0644\u0646\u0645\u0627\u0630\u062c \u0645\u0642\u0635\u0648\u0631 \u0639\u0644\u0649 \u0641\u0631\u064a\u0642 \u0627\u0644\u0647\u0646\u062f\u0633\u0629.\u00bb",
-      stDoc:"\u0633\u064a\u0627\u0633\u0629 \u0636\u0628\u0637 \u0627\u0644\u0648\u0635\u0648\u0644 v3: \u0627\u0644\u062d\u062f \u0627\u0644\u0623\u062f\u0646\u0649 \u0645\u0646 \u0627\u0644\u0635\u0644\u0627\u062d\u064a\u0627\u062a\u060c \u0644\u0644\u0647\u0646\u062f\u0633\u0629 \u0641\u0642\u0637.",
-      stReal:"IAM: <b>14 \u062d\u0633\u0627\u0628\u064b\u0627</b>\u060c 3 \u0645\u0646 \u062e\u0627\u0631\u062c \u0627\u0644\u0647\u0646\u062f\u0633\u0629\u060c \u0648\u062d\u0633\u0627\u0628 \u062e\u062f\u0645\u0629 \u0648\u0627\u062d\u062f \u0628\u0635\u0644\u0627\u062d\u064a\u0629 <code>*</code>.",
-      eyeSurf:"\u062b\u0644\u0627\u062b \u0648\u0627\u062c\u0647\u0627\u062a", h2Surf:"\u0645\u062d\u0631\u0643 \u0648\u0627\u062d\u062f. \u062b\u0644\u0627\u062b\u0629 \u0645\u062f\u0627\u062e\u0644.",
-      s1t:"\u0627\u0644\u062d\u0648\u0643\u0645\u0629", s2t:"\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0639\u062f\u0627\u0626\u064a", s3t:"\u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629",
-      s1p:"\u0627\u062e\u062a\u0631 \u0625\u0637\u0627\u0631\u064b\u0627. \u064a\u0631\u0633\u0645\u0647 \u0627\u0644\u0631\u0648\u0628\u0648\u062a\u060c \u0648\u064a\u062a\u062d\u0642\u0642 \u0645\u0646\u0647 \u0627\u0644\u0627\u0633\u062a\u0643\u0634\u0627\u0641\u060c \u0648\u062a\u064f\u0643\u062a\u0628 \u0627\u0644\u0645\u062e\u0631\u062c\u0627\u062a \u062a\u0644\u0642\u0627\u0626\u064a\u064b\u0627.",
-      s2p:"\u0641\u0631\u0642 \u062d\u0645\u0631\u0627\u0621 \u0645\u0633\u062a\u0645\u0631\u0629 \u0636\u062f OWASP LLM Top 10\u060c \u0648\u0641\u0642 \u062c\u062f\u0648\u0644\u060c \u0644\u0627 \u0645\u0631\u0629 \u0641\u064a \u0627\u0644\u0633\u0646\u0629.",
-      s3p:"\u0643\u0644 \u0645\u0648\u062c\u0651\u0647 \u062d\u0645\u0644 \u0628\u064a\u0627\u0646\u0627\u062a \u0634\u062e\u0635\u064a\u0629: \u0645\u064f\u0642\u0646\u0651\u0639\u060c \u0645\u062d\u0638\u0648\u0631\u060c \u0623\u0648 \u0630\u0627\u0643 \u0627\u0644\u0630\u064a \u064a\u062c\u0628 \u0623\u0646 \u062a\u0639\u0631\u0641\u0647.",
-      s1g:"\u0627\u0628\u062f\u0623 \u062a\u0642\u064a\u064a\u0645\u064b\u0627 <i>\u2190</i>", s2g:"\u0627\u0639\u0631\u0636 \u0627\u0644\u0648\u0636\u0639 <i>\u2190</i>", s3g:"\u0627\u0639\u0631\u0636 \u0627\u0644\u0633\u062c\u0644 <i>\u2190</i>",
-      eyeAcc:"\u0627\u0644\u0648\u0635\u0648\u0644", h2Acc:"\u0644\u0627 \u0646\u062d\u062a\u0641\u0638 \u0628\u0645\u0641\u0627\u062a\u064a\u062d\u0643 \u0623\u0628\u062f\u064b\u0627.",
-      subAcc:"\u064a\u0639\u0645\u0644 \u0627\u0644\u0645\u064f\u062c\u0645\u0651\u0639 \u062f\u0627\u062e\u0644 \u0646\u0637\u0627\u0642\u0643\u060c \u0648\u0628\u0635\u0644\u0627\u062d\u064a\u0627\u062a\u0643.",
-      accT:"\u062d\u064a\u0627\u0632\u0629 \u0635\u0641\u0631\u064a\u0629",
-      accSum:"\u064a\u0639\u0645\u0644 \u0628\u0635\u0644\u0627\u062d\u064a\u0627\u062a\u0643\u060c \u062f\u0627\u062e\u0644 \u0646\u0637\u0627\u0642\u0643. <b>\u0644\u0627 \u0646\u062d\u062a\u0641\u0638 \u0628\u0645\u0641\u0627\u062a\u064a\u062d\u0643 \u0623\u0628\u062f\u064b\u0627.</b>",
-      d1:"\u062d\u0645\u0648\u0644\u0627\u062a \u0627\u0644\u0627\u0633\u062a\u062f\u0644\u0627\u0644 \u0627\u0644\u0625\u0646\u062a\u0627\u062c\u064a\u0629",
-      d2:"\u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629 \u0628\u0623\u064a \u0634\u0643\u0644",
-      d3:"\u0623\u0648\u0632\u0627\u0646 \u0627\u0644\u0646\u0645\u0627\u0630\u062c",
-      d4:"\u0623\u064a \u0635\u0644\u0627\u062d\u064a\u0629 \u0643\u062a\u0627\u0628\u0629\u060c \u0641\u064a \u0623\u064a \u0645\u0643\u0627\u0646",
-      a1:"\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0648IAM \u0648\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0633\u062c\u0644 \u0627\u0644\u0648\u0635\u0641\u064a\u0629",
-      a2:"<b>\u0627\u0643\u062a\u0645\u0627\u0644</b>&nbsp;\u0627\u0644\u0633\u062c\u0644\u0627\u062a\u060c \u0644\u0627 \u0645\u062d\u062a\u0648\u0627\u0647\u0627",
-      a3:"\u0627\u0644\u0645\u0642\u0627\u064a\u064a\u0633 \u0627\u0644\u0645\u062c\u0645\u0651\u0639\u0629 \u0627\u0644\u062a\u064a \u062a\u062d\u0633\u0628\u0647\u0627 \u0623\u0635\u0644\u064b\u0627"
-    }
+  /* language */
+  var AR = {
+    n1:'نظرة عامة', n2:'الحوكمة', n3:'الأُطر', n4:'الاستكشاف', n5:'الاختبار العدائي', n6:'حواجز الحماية',
+    cta:'ابدأ التقييم', so:'تسجيل الخروج',
+    kick0:'ضمان مستمر للذكاء الاصطناعي',
+    h1a:'الثقة لا تُعلَن.', h1b:'بل', h1c:'تُثبَت.',
+    lede:'نربط نظامك بالأطر التي تلزمه، ثم نواصل المراقبة. يوم يتوقف ضابط عن العمل، تعرف أنت. لا المدقق.',
+    cta1:'ابدأ التقييم', cta2:'كيف تعمل المنصة',
+    kick1:'كيف تعمل', h21:'أربع حركات. حلقة واحدة متصلة.',
+    kick2:'الوضع العام', h22:'وضع واحد. يُقاس باستمرار.',
+    sub2:'أرقام حية من الأسطح الأربعة.',
+    m1t:'استيعاب', m1p:'ارفع ما لديك. يستخرج المحرك الحقائق التي يحتاجها الإطار فقط، ويوثّق الصفحة.',
+    m2t:'مقابلة', m2p:'محاوِر بمستوى المدقق يسأل عمّا لم تقله الوثائق. ويتابع.',
+    m3t:'استكشاف', m3p:'مُجمّع للقراءة فقط داخل نطاقك يراقب ما يفعله نظامك فعلًا.',
+    m4t:'ضمان', m4p:'تقييم الفجوة وبيان القابلية ومصفوفة المخاطر. ثم تبقى الحلقة مفتوحة، والانحراف يرفع إنذارًا.',
+    pb1:'المشكلة: لا يمكنك حوكمة ما لا تراه',
+    h31:'اعثر على كل نظام ذكاء اصطناعي، معتمدًا كان أو لا',
+    p1:'مُجمّع للقراءة فقط يعمل داخل نطاقك وبصلاحياتك، ويكشف كل نظام ذكاء اصطناعي قيد الاستخدام خلال يوم. بما فيها ما لم يعتمده أحد.',
+    pb2:'المشكلة: اختبار الاختراق السنوي متقادم أصلًا',
+    h32:'هاجم نظامك قبل أن يفعلها غيرك',
+    p2:'تعمل قائمة OWASP لأهم عشرة مخاطر على بيئة التجهيز وفق جدول متكرر. أي تراجع يظهر في الدورة التالية لا في العام التالي.',
+    pb3:'المشكلة: الوثيقة ليست إثباتًا',
+    h33:'اربط كل نظام بالقانون الذي ينطبق عليه',
+    p3:'كل متطلب يُفحص على نظامك الحي، ولا يُعلَّم مطابقًا إلا حين يؤكده شخص مسمّى رسميًا.',
+    pb4:'المشكلة: التسريب يسبق المراجعة',
+    h34:'التقط التسريب قبل أن يبلغ النموذج',
+    p4:'كل طلب يُفحص قبل وصوله إلى النموذج. تقنيع أو حجب، بالإنجليزية والأردية اللاتينية، والنادر الذي يمر يُسجَّل.',
+    pbm:'المشكلة: لا مصدر واحدًا يمكن الوثوق به',
+    h3m:'لا نثق بمصدر واحد أبدًا.',
+    pm:'الملاحظة هي الفارق بين ما تعتقده وما كتبته وما يفعله نظامك.'
   };
-
-  var root = document.querySelector(".ovx") || document.documentElement;
-  var ledeEl = document.querySelector(".lede");
-  if (ledeEl) ledeEl.setAttribute("data-i18n","lede");
-
-  function applyLang(lang){
-    var dict = STRINGS[lang] || STRINGS.en;
-    document.querySelectorAll("[data-i18n]").forEach(function(el){
-      var k = el.getAttribute("data-i18n");
-      if (dict[k] != null) el.innerHTML = dict[k];
+  var EN = {};
+  document.querySelectorAll('[data-i]').forEach(function(el){ EN[el.getAttribute('data-i')] = el.textContent; });
+  var enBtn = document.getElementById('enBtn'), arBtn = document.getElementById('arBtn');
+  function setLang(l){
+    var d = (l === 'ar') ? AR : EN;
+    document.querySelectorAll('[data-i]').forEach(function(el){
+      var k = el.getAttribute('data-i'); if(d[k]) el.textContent = d[k];
     });
-    root.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
-    root.setAttribute("lang", lang);
-    document.documentElement.lang = lang;
-    document.querySelectorAll(".lang button").forEach(function(b){
-      b.setAttribute("aria-pressed", b.getAttribute("data-lang") === lang ? "true" : "false");
-    });
-    try { localStorage.setItem("tahara-lang", lang); } catch(e){}
+    root.setAttribute('dir', l === 'ar' ? 'rtl' : 'ltr');
+    document.documentElement.setAttribute('lang', l);
+    enBtn.classList.toggle('on', l === 'en'); arBtn.classList.toggle('on', l === 'ar');
+    try{ localStorage.setItem('tahara-lang', l); }catch(e){}
+  }
+  enBtn.addEventListener('click', function(){ setLang('en'); });
+  arBtn.addEventListener('click', function(){ setLang('ar'); });
+  try{ if(localStorage.getItem('tahara-lang') === 'ar') setLang('ar'); }catch(e){}
+
+  /* ticker loop */
+  var tk = document.getElementById('tktrack');
+  tk.innerHTML = tk.innerHTML + tk.innerHTML;
+
+  /* hero */
+  requestAnimationFrame(function(){ document.getElementById('hero').classList.add('live'); });
+
+  /* movements, scroll-driven sequence */
+  var stage = document.getElementById('mvstage'),
+      mvs = Array.prototype.slice.call(document.querySelectorAll('#mvgrid .mv')),
+      nds = Array.prototype.slice.call(document.querySelectorAll('#loopnodes .nd')),
+      ndts = Array.prototype.slice.call(document.querySelectorAll('#loopnodes .ndt')),
+      loopdraw = document.getElementById('loopdraw'),
+      loopLen = 0, mvMode = 'pin';
+
+  function mvSetup(){
+    var clipOK = (window.CSS && CSS.supports && CSS.supports('overflow-x','clip'));
+    if(reduce){ mvMode = 'static'; }
+    else if(window.innerWidth <= 1060 || window.innerHeight <= 640 || !clipOK){ mvMode = 'flow'; }
+    else { mvMode = 'pin'; }
+    stage.classList.toggle('flat', mvMode !== 'pin');
+    if(loopdraw && !loopLen){
+      loopLen = loopdraw.getTotalLength();
+      loopdraw.style.strokeDasharray = loopLen;
+      loopdraw.style.strokeDashoffset = loopLen;
+    }
+    if(mvMode === 'static'){
+      mvGrid.classList.add('ready');
+      mvs.forEach(function(m){ m.style.transitionDelay = ''; m.classList.add('done'); m.classList.remove('act'); });
+      nds.forEach(function(n){ n.classList.add('on'); });
+      ndts.forEach(function(n){ n.classList.add('on'); });
+      if(loopdraw) loopdraw.style.strokeDashoffset = 0;
+    }
   }
 
-  document.querySelectorAll(".lang button").forEach(function(b){
-    b.addEventListener("click", function(){ applyLang(b.getAttribute("data-lang")); });
-  });
+  var FRAC = [0.001, 0.3330, 0.6670, 1],
+      GATE = [0, 0.27, 0.52, 0.77],
+      mvGrid = document.getElementById('mvgrid');
 
-  var saved = "en";
-  try { saved = localStorage.getItem("tahara-lang") || "en"; } catch(e){}
-  if (saved === "ar") applyLang("ar");
-})();
-
-/* ═══ theme toggle — shared platform key ═══ */
-(function(){
-  var KEY = "tahara-theme";
-  var btn = document.getElementById("themeTg");
-  function apply(t){
-    document.documentElement.dataset.theme = t;
-    try{ localStorage.setItem(KEY, t); }catch(e){}
+  function mvReveal(){
+    if(mvGrid.classList.contains('ready')) return;
+    mvs.forEach(function(m, i){ m.style.transitionDelay = (reduce ? 0 : i * .09) + 's'; });
+    mvGrid.classList.add('ready');
+    setTimeout(function(){ mvs.forEach(function(m){ m.style.transitionDelay = ''; }); }, 1000);
   }
-  if (btn) btn.addEventListener("click", function(){
-    apply(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
-  });
+
+  function mvScroll(){
+    if(mvMode === 'static') return;
+    var r = stage.getBoundingClientRect(),
+        vh = window.innerHeight, p;
+    if(mvMode === 'pin'){
+      var total = stage.offsetHeight - vh;
+      if(total <= 0) return;
+      p = Math.min(1, Math.max(0, -r.top / total));
+    } else {
+      var travelled = vh * 0.88 - r.top,
+          span = r.height + vh * 0.5;
+      p = Math.min(1, Math.max(0, travelled / span));
+    }
+    var step = 0, i;
+    for(i = 1; i < 4; i++){ if(p >= GATE[i]) step = i; }
+    mvs.forEach(function(m, idx){
+      m.classList.toggle('act', idx === step);
+      m.classList.toggle('done', idx < step);
+    });
+    nds.forEach(function(n, idx){ n.classList.toggle('on', idx <= step); });
+    ndts.forEach(function(n, idx){ n.classList.toggle('on', idx <= step); });
+    var frac = FRAC[step];
+    if(loopdraw) loopdraw.style.strokeDashoffset = loopLen * (1 - frac);
+  }
+
+  var mvTick = false;
+  function onScroll(){
+    if(mvTick) return;
+    mvTick = true;
+    requestAnimationFrame(function(){ mvScroll(); mvTick = false; });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', function(){ mvSetup(); mvScroll(); });
+  mvSetup(); mvScroll();
+
+  /* counters and sparklines */
+  function countUp(el){
+    var to = parseFloat(el.getAttribute('data-to')) || 0,
+        dec = +(el.getAttribute('data-dec') || 0),
+        t0 = null, dur = 950;
+    function fmt(v){ return dec ? v.toFixed(dec) : Math.round(v).toLocaleString('en-US'); }
+    if(reduce){ el.textContent = fmt(to); return; }
+    function step(ts){
+      if(!t0) t0 = ts;
+      var p = Math.min((ts - t0) / dur, 1), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmt(to * e);
+      if(p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  function drawSpark(path){
+    var len = path.getTotalLength();
+    path.style.strokeDasharray = len;
+    path.style.strokeDashoffset = len;
+    path.getBoundingClientRect();
+    path.style.transition = reduce ? 'none' : 'stroke-dashoffset 1.1s cubic-bezier(.2,.7,.2,1) .25s';
+    path.style.strokeDashoffset = 0;
+  }
+
+  /* feature orchestration */
+  function play(sec){
+    sec.classList.add('live');
+    function d(el, t){ el.style.transitionDelay = (reduce ? 0 : t) + 's'; }
+    sec.querySelectorAll('.si').forEach(function(el, i){ d(el, .18 + i * .04); });
+    sec.querySelectorAll('.kc').forEach(function(el, i){ d(el, .3 + i * .09); });
+    sec.querySelectorAll('.pcard').forEach(function(el, i){ d(el, .34 + i * .1); });
+    sec.querySelectorAll('.crit,.filts').forEach(function(el){ d(el, .46); });
+    sec.querySelectorAll('.lnr,.oc,.lg,.cbar,.cat').forEach(function(el, i){ d(el, .5 + i * .055); });
+    sec.querySelectorAll('.drow,.dsep').forEach(function(el, i){ d(el, .4 + i * .24); });
+    setTimeout(function(){
+      sec.querySelectorAll('.num').forEach(countUp);
+      sec.querySelectorAll('.spk path').forEach(drawSpark);
+      sec.querySelectorAll('.stack i,.cat .track i').forEach(function(el){
+        var w = el.getAttribute('data-w') || 0;
+        requestAnimationFrame(function(){ el.style.width = w + '%'; });
+      });
+    }, reduce ? 0 : 420);
+  }
+
+  /* posture data layer */
+  function playPosture(sec){
+    sec.classList.add('live');
+    sec.querySelectorAll('.pc').forEach(function(el, i){
+      el.style.transitionDelay = (reduce ? 0 : .06 + i * .1) + 's';
+    });
+    var line = document.getElementById('pline');
+    if(line){
+      var len = line.getTotalLength();
+      line.style.strokeDasharray = len;
+      line.style.strokeDashoffset = len;
+      line.getBoundingClientRect();
+      line.style.transition = reduce ? 'none' : 'stroke-dashoffset 1.5s cubic-bezier(.3,.2,.2,1) .3s';
+      line.style.strokeDashoffset = 0;
+    }
+    var arc = document.getElementById('darc');
+    if(arc){
+      if(reduce){ arc.style.transition = 'none'; }
+      requestAnimationFrame(function(){ arc.style.strokeDasharray = '32.6 67.4'; });
+    }
+    setTimeout(function(){
+      sec.querySelectorAll('.num').forEach(countUp);
+      sec.querySelectorAll('.htrack i,.gtrack i').forEach(function(el){
+        var w = el.getAttribute('data-w') || 0;
+        requestAnimationFrame(function(){ el.style.width = w + '%'; });
+      });
+    }, reduce ? 0 : 420);
+  }
+
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting) return;
+      var t = e.target;
+      if(t.id === 'mvgrid'){ mvReveal(); return; }
+      if(t.id === 'posture'){ playPosture(t); return; }
+      if(t.classList.contains('feat')) play(t);
+      else t.classList.add('in');
+      io.unobserve(t);
+    });
+  }, { threshold:.2, rootMargin:'0px 0px -60px 0px' });
+  document.querySelectorAll('.feat,.rv,#mvgrid,#posture').forEach(function(el){ io.observe(el); });
 })();
 
   } finally {

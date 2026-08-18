@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { initOverview } from "./overview-runtime";
-
+import { useEffect } from "react";
+import Link from "next/link";
 export default function OverviewPage(){
   useEffect(() => {
     const dispose = initOverview();
@@ -25,20 +25,20 @@ export default function OverviewPage(){
               <span><b>Tahara AI</b><i>CONTINUOUS ASSURANCE</i></span>
             </a>
             <nav className="nav">
-              <a href="#" className="on" data-i="n1">Overview</a>
-              <a href="#" data-i="n2">Governance</a>
-              <a href="#" data-i="n3">Frameworks</a>
-              <a href="#" data-i="n4">Discovery</a>
-              <a href="#" data-i="n5">Adversarial</a>
-              <a href="#" data-i="n6">Guardrails</a>
+              <Link href="/overview" className="on" data-i="n1">Overview</Link>
+              <Link href="/governance" data-i="n2">Governance</Link>
+              <Link href="/framework" data-i="n3">Frameworks</Link>
+              <a href="#" data-i="n4" onClick={(e)=>e.preventDefault()}>Discovery</a>
+              <a href="#" data-i="n5" onClick={(e)=>e.preventDefault()}>Adversarial</a>
+              <a href="#" data-i="n6" onClick={(e)=>e.preventDefault()}>Guardrails</a>
             </nav>
             <div className="top-r">
               <button className="icb" id="themeBtn" aria-label="Switch theme">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M20 14.5A8.2 8.2 0 0 1 9.6 4 8.5 8.5 0 1 0 20 14.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg>
               </button>
               <div className="seg"><button className="on" id="enBtn">EN</button><button id="arBtn">عربي</button></div>
-              <a className="cta-sm" href="#" data-i="cta">Start assessment</a>
-              <a className="signout" href="#" data-i="so">Sign out</a>
+              <Link className="cta-sm" href="/governance" data-i="cta">Start assessment</Link>
+              <Link className="signout" href="/" data-i="so">Sign out</Link>
             </div>
           </div>
         </header>
@@ -51,8 +51,8 @@ export default function OverviewPage(){
               <h1><span data-i="h1a">Trust is not declared.</span><br /><span data-i="h1b">It is</span> <em data-i="h1c">demonstrated.</em></h1>
               <p className="lede" data-i="lede">We map your system against the frameworks that bind it, then keep watching. The day a control stops operating, you find out. Not the auditor.</p>
               <div className="acts">
-                <a className="bl" href="#"><span data-i="cta1">Start an assessment</span><span>&#8594;</span></a>
-                <a className="bl g" href="#" data-i="cta2">See how it works</a>
+              <Link className="bl" href="/governance"><span data-i="cta1">Start an assessment</span><span>&#8594;</span></Link>
+                <a className="bl g" href="#mvstage" data-i="cta2">See how it works</a>
               </div>
               <div className="fchips">
                 <span className="fc">EU AI Act</span><span className="fc">ISO/IEC 42001</span><span className="fc">ISO/IEC 23894</span>

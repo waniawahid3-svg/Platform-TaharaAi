@@ -52,7 +52,7 @@ export default function OverviewPage(){
             <h1 className="hx-rev" style={{'--d':'.08s'}}><span className="hx-l1" data-t="h1a">Trust is not declared.</span><span className="hx-l2"><span data-t="h1b">It is </span><span className="hx-g" data-t="h1g">demonstrated.</span></span></h1>
             <p className="hx-lede hx-rev" style={{'--d':'.16s'}} data-t="lede"><span className="hx-ll">We map your system against the frameworks that bind it, then <strong>keep watching</strong>. </span><span className="hx-ll">The day a control stops operating, you find out. Not the auditor.</span></p>
             <div className="hx-row hx-rev" style={{'--d':'.24s'}}>
-              <a className="hx-primary" href="#" data-t="cta1">Start an assessment <span className="hx-a">&rarr;</span></a>
+              <Link className="hx-primary" href="/governance" data-t="cta1">Start an assessment <span className="hx-a">&rarr;</span></Link>
               <a className="hx-textlink" href="#" data-t="cta2">See how it works</a>
             </div>
           </section>

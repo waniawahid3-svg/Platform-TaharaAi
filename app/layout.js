@@ -15,10 +15,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23041B3F'/%3E%3Cpath d='M12 4 6 6.6v4.5c0 3.7 2.55 6.45 6 7.9 3.45-1.45 6-4.2 6-7.9V6.6L12 4Z' fill='none' stroke='%235EE7C4' stroke-width='1.5'/%3E%3C/svg%3E" />
+        <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23041B3F'/%3E%3Cpath d='M12 4 6 6.6v4.5c0 3.7 2.55 6.45 6 7.9 3.45-1.45 6-4.2 6-7.9V6.6L12 4Z' fill='none' stroke='%235B9BFF' stroke-width='1.5'/%3E%3C/svg%3E" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,600&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@400;600;700&display=swap" rel="stylesheet" />
         <script dangerouslySetInnerHTML={{__html: 'try{var t=localStorage.getItem("tahara-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}'}} />
       </head>
       <body>{children}</body>

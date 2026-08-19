@@ -1,12 +1,15 @@
-/* Ported from tahara-overview-redesign-v27.html (approved design file). */
+/* Ported from the approved combined design file: hero (hxr), v29 posture data, detail modals. */
 export function initOverview(){
   const _ios = [];
   const _winHandlers = [];
+  const _docHandlers = [];
   const _origIO = window.IntersectionObserver;
   const _trackedIO = function(cb, opts){ const io = new _origIO(cb, opts); _ios.push(io); return io; };
   window.IntersectionObserver = _trackedIO;
   const _origAdd = window.addEventListener.bind(window);
   window.addEventListener = function(t, fn, o){ _winHandlers.push([t, fn, o]); return _origAdd(t, fn, o); };
+  const _origDocAdd = document.addEventListener.bind(document);
+  document.addEventListener = function(t, fn, o){ _docHandlers.push([t, fn, o]); return _origDocAdd(t, fn, o); };
   try{
 
   document.querySelectorAll(".ovx img").forEach(function(img){
@@ -72,13 +75,6 @@ export function initOverview(){
   enBtn.addEventListener('click', function(){ setLang('en'); });
   arBtn.addEventListener('click', function(){ setLang('ar'); });
   try{ if(localStorage.getItem('tahara-lang') === 'ar') setLang('ar'); }catch(e){}
-
-  /* ticker loop */
-  var tk = document.getElementById('tktrack');
-  tk.innerHTML = tk.innerHTML + tk.innerHTML;
-
-  /* hero */
-  requestAnimationFrame(function(){ document.getElementById('hero').classList.add('live'); });
 
   /* movements, scroll-driven sequence */
   var stage = document.getElementById('mvstage'),
@@ -239,14 +235,103 @@ export function initOverview(){
     });
   }, { threshold:.2, rootMargin:'0px 0px -60px 0px' });
   document.querySelectorAll('.feat,.rv,#mvgrid,#posture').forEach(function(el){ io.observe(el); });
+
+  /* posture detail modals */
+  var DET={
+    leak:{t:'Data leak detail', b:
+      '<div class="mrow"><span class="k">Finding</span><span class="val mono">FND-0141</span></div>'+
+      '<div class="mrow"><span class="k">Vector</span><span class="val">Retrieval path</span></div>'+
+      '<div class="mrow"><span class="k">Severity</span><span class="val rd">Major</span></div>'+
+      '<div class="mrow"><span class="k">Detected</span><span class="val">2m ago</span></div>'+
+      '<div class="mrow"><span class="k">Status</span><span class="val">Contained</span></div>'+
+      '<p class="mnote">A sensitive value surfaced through a retrieval path before masking. The response was blocked and the record flagged for review.</p>'},
+    controls:{t:'Controls overview', b:
+      '<div class="mrow"><span class="k">Passing</span><span class="val bl">61</span></div>'+
+      '<div class="mrow"><span class="k">Minor</span><span class="val am">7</span></div>'+
+      '<div class="mrow"><span class="k">Major</span><span class="val rd">3</span></div>'+
+      '<div class="mrow"><span class="k">Tracked</span><span class="val">187</span></div>'+
+      '<p class="mnote">Minor items need review. Major items are out of policy and blocking. The full register lives in the Governance workspace.</p>'},
+    cats:{t:'Attack categories', b:
+      '<div class="mrow"><span class="k">Passing</span><span class="val bl">5</span></div>'+
+      '<div class="mrow"><span class="k">Degraded</span><span class="val am">3</span></div>'+
+      '<div class="mrow"><span class="k">Failing</span><span class="val rd">2</span></div>'+
+      '<div class="mtags"><i>PROMPT INJECTION</i><i>JAILBREAK</i><i>DATA EXFILTRATION</i><i>PII LEAKAGE</i><i>MODEL ABUSE</i><i class="more">+5 MORE</i></div>'+
+      '<p class="mnote">10 categories run every cycle. Passing categories held; degraded and failing need attention.</p>'}
+  };
+  (function(){
+    var modal=document.getElementById('modal'); if(!modal) return;
+    var mTitle=document.getElementById('mTitle'),mBody=document.getElementById('mBody'),lastFocus=null;
+    function openModal(k){var d=DET[k];if(!d)return;mTitle.textContent=d.t;mBody.innerHTML=d.b;lastFocus=document.activeElement;modal.hidden=false;var x=modal.querySelector('.mx');if(x)x.focus();}
+    function closeModal(){modal.hidden=true;if(lastFocus&&lastFocus.focus)lastFocus.focus();}
+    document.querySelectorAll('[data-modal]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();openModal(a.getAttribute('data-modal'));});});
+    modal.querySelectorAll('[data-close]').forEach(function(x){x.addEventListener('click',closeModal);});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!modal.hidden)closeModal();});
+  })();
+})();
+
+(function(){
+  var root=document.documentElement,
+      safe={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}},
+      reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  function start(){
+    var hxr=document.getElementById('hero'); if(hxr) hxr.classList.add('hx-ready');
+    document.querySelectorAll('.hx-seg').forEach(function(s){s.style.width=s.getAttribute('data-w')});
+    document.querySelectorAll('.hx-rf').forEach(function(r){r.style.strokeDashoffset=r.getAttribute('data-off')});
+    document.querySelectorAll('.hx-count').forEach(function(el){
+      var to=parseInt(el.getAttribute('data-count'),10);
+      if(reduce){el.textContent=to;return}
+      var t0=null,dur=1200;
+      function step(ts){if(!t0)t0=ts;var p=Math.min((ts-t0)/dur,1),e=1-Math.pow(1-p,3);
+        el.textContent=Math.round(e*to);if(p<1)requestAnimationFrame(step)}
+      setTimeout(function(){requestAnimationFrame(step)},600);
+    });
+  }
+  requestAnimationFrame(function(){requestAnimationFrame(start)});
+
+  var STR={
+    en:{kicker:"Continuous AI assurance",h1a:"Trust is not declared.",h1b:"It is ",h1g:"demonstrated.",
+        lede:'<span class="ll">We map your system against the frameworks that bind it, then <strong>keep watching</strong>. </span><span class="ll">The day a control stops operating, you find out. Not the auditor.</span>',
+        cta1:'Start an assessment <span class="a">&rarr;</span>',cta2:"See how it works",ctaNav:"Start assessment",signout:"Sign out",
+        wt:"Assurance posture",wb:"Start assessment",tb1:"Controls",tb2:"Findings",tb3:"Evidence",
+        m1:"Assessment progress",m2:"Findings by severity",gl:"Scored",s1:"Low",s2:"Medium",s3:"High",s4:"Critical",
+        c_ok:"Operating",c_ok2:"Operating",c_rev:"Needs review",
+        fc:"WORKFLOWS /",ft:"Re-verification for AI controls",fm1:"Active",fm2:"Owner · Cyber team",fm3:"Runs daily",
+        fn1l:"Start",fn2l:"Trigger",fn2v:"Control readiness changed",
+        fa1l:"Create task",fa1v:"Evidence linked",fa2l:"Notify",fa2v:"Control owners",fa3l:"Webhook",
+        tt:"Evidence verified",ts:"AIA 9.2 · just now"},
+    ar:{kicker:"ضمان الذكاء الاصطناعي المستمر",h1a:"الثقة لا تُعلَن.",h1b:"بل ",h1g:"تُثبَت.",
+        lede:'<span class="ll">نُطابق نظامك مع الأطر التي تحكمه، ثم <strong>نواصل المراقبة</strong>. </span><span class="ll">يوم يتوقف أحد الضوابط عن العمل، تعرف أنت. لا المدقق.</span>',
+        cta1:'ابدأ التقييم <span class="a">&larr;</span>',cta2:"شاهد كيف يعمل",ctaNav:"ابدأ التقييم",signout:"تسجيل الخروج",
+        wt:"وضعية الضمان",wb:"ابدأ التقييم",tb1:"الضوابط",tb2:"النتائج",tb3:"الأدلة",
+        m1:"تقدم التقييم",m2:"النتائج حسب الخطورة",gl:"مُقيَّم",s1:"منخفض",s2:"متوسط",s3:"مرتفع",s4:"حرج",
+        c_ok:"يعمل",c_ok2:"يعمل",c_rev:"يتطلب مراجعة",
+        fc:"مسارات العمل /",ft:"إعادة التحقق لضوابط الذكاء الاصطناعي",fm1:"نشط",fm2:"المالك · فريق الأمن",fm3:"يعمل يومياً",
+        fn1l:"البداية",fn2l:"المحفّز",fn2v:"تغيّرت جاهزية الضابط",
+        fa1l:"إنشاء مهمة",fa1v:"الدليل مرتبط",fa2l:"إشعار",fa2v:"مالكو الضوابط",fa3l:"Webhook",
+        tt:"تم التحقق من الدليل",ts:"AIA 9.2 · الآن"}
+  };
+  var NAV={Overview:"نظرة عامة",Governance:"الحوكمة",Frameworks:"الأُطر",Discovery:"الاكتشاف",Guardrails:"حواجز الحماية"};
+  function setLang(l){
+    root.setAttribute('data-lang',l);root.setAttribute('lang',l);var t=STR[l];
+    document.querySelectorAll('[data-t]').forEach(function(e){var k=e.getAttribute('data-t');if(t[k]!=null)e.innerHTML=t[k]});
+    var cp=document.querySelector('.hx-copy'); if(cp) cp.setAttribute('dir',l==='ar'?'rtl':'ltr');
+    safe.set('tahara-lang',l);
+  }
+  var enB=document.getElementById('enBtn'), arB=document.getElementById('arBtn');
+  if(enB) enB.addEventListener('click',function(){setLang('en')});
+  if(arB) arB.addEventListener('click',function(){setLang('ar')});
+  setLang(safe.get('tahara-lang')||'en');
 })();
 
   } finally {
     window.IntersectionObserver = _origIO;
     window.addEventListener = _origAdd;
+    document.addEventListener = _origDocAdd;
   }
   return function dispose(){
     _ios.forEach(function(io){ io.disconnect(); });
     _winHandlers.forEach(function(h){ window.removeEventListener(h[0], h[1], h[2]); });
+    _docHandlers.forEach(function(h){ document.removeEventListener(h[0], h[1], h[2]); });
   };
 }

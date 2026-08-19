@@ -1,4 +1,4 @@
-/* Ported from the approved design file. */
+/* Ported from the approved combined design file: blue theme, medallion interstitials, specific-framework contact flow. */
 export function initGovernance(){
   const _ios = [];
   const _winHandlers = [];
@@ -43,26 +43,6 @@ export function initGovernance(){
 })();
 
 /* ═══ seals ═══ */
-function buildSeal(mount, size, ring, core){
-  var ticks = "";
-  for (var i=0;i<36;i++){
-    var a=(i*10)*Math.PI/180, maj=i%3===0, r1=43.5, r2=maj?40:41.8;
-    ticks += '<line class="tick '+(maj?'maj':'')+'" x1="'+(60+r1*Math.cos(a)).toFixed(2)+'" y1="'+(60+r1*Math.sin(a)).toFixed(2)+'" x2="'+(60+r2*Math.cos(a)).toFixed(2)+'" y2="'+(60+r2*Math.sin(a)).toFixed(2)+'"/>';
-  }
-  document.getElementById(mount).outerHTML =
-    '<div class="seal" style="width:'+size+'px;height:'+size+'px"><svg viewBox="0 0 120 120" width="'+size+'" height="'+size+'">'+
-    '<defs><path id="sp'+mount+'" d="M 60,60 m -50,0 a 50,50 0 1,1 100,0 a 50,50 0 1,1 -100,0"/>'+
-    '<radialGradient id="sc'+mount+'" cx="50%" cy="40%" r="65%"><stop offset="0%" stop-color="#0E3D6E"/><stop offset="60%" stop-color="#062A52"/><stop offset="100%" stop-color="#041B3F"/></radialGradient></defs>'+
-    '<circle class="rim-o" cx="60" cy="60" r="56"/><circle class="band" cx="60" cy="60" r="54.5"/><circle class="band" cx="60" cy="60" r="45.5"/>'+
-    '<g class="ring"><text dy="1.6" textLength="314" lengthAdjust="spacing"><textPath href="#sp'+mount+'" textLength="314" lengthAdjust="spacing">'+ring+'</textPath></text></g>'+
-    '<g>'+ticks+'</g>'+
-    '<circle cx="60" cy="60" r="29" fill="url(#sc'+mount+')"/><circle class="core-r" cx="60" cy="60" r="29"/>'+
-    '<text x="60" y="70" font-size="26" font-weight="700" text-anchor="middle" fill="#D8F4EA" font-family="Inter,sans-serif">'+core+'</text>'+
-    '</svg></div>';
-}
-buildSeal("sealVer", 120, "VERIFYING \u00b7 CONFIRMING \u00b7 PENDING \u00b7 VERIFYING \u00b7 ", "\u2026");
-buildSeal("sealSent", 120, "REQUEST RECEIVED \u00b7 IN QUEUE \u00b7 MAPPING \u00b7 REQUEST RECEIVED \u00b7 ", "\u2713");
-buildSeal("sealGo", 150, "ISO 42001 \u00b7 NIST AI RMF \u00b7 EU AI ACT \u00b7 ISO 23894 \u00b7 ", "R");
 
 /* ═══ wizard state ═══ */
 var MODE = "master";      /* master | single */
@@ -74,9 +54,9 @@ function $(id){ return document.getElementById(id); }
 function rows(){ return Array.prototype.slice.call(document.querySelectorAll(".fw")); }
 
 function go(n){
-  ["p1","p2","pSent","pVerify","p3"].forEach(function(id){ $(id).classList.remove("on"); });
+  ["p1","p2","pReach","pSent","pVerify","p3"].forEach(function(id){ $(id).classList.remove("on"); });
   $(n).classList.add("on");
-  var map = {p1:1,p2:2,pSent:2,p3:3};
+  var map = {p1:1,p2:2,pReach:2,pSent:2,p3:3};
   var st = map[n];
   [1,2,3].forEach(function(i){
     var el = $("s"+i);
@@ -101,6 +81,13 @@ function go(n){
       rows().forEach(function(r){
         if (CORE.indexOf(r.dataset.fw) !== -1) r.classList.add("sel");
       });
+    }
+    if (MODE === "single"){
+      $("rfForm").style.display = "";
+      $("rfDone").style.display = "none";
+      $("reachPlate").classList.remove("done");
+      go("pReach");
+      return;
     }
     syncSel();
     applyModeText();
@@ -222,15 +209,19 @@ $("verBtn").addEventListener("click", function(){
   $("verBack").style.display = "";
   applyLang(LANG);
   $("verEmOut").textContent = em;
+  $("verPlate").classList.add("pend");
+  $("verPlate").classList.remove("done");
   go("pVerify");
   if (verTimer) clearTimeout(verTimer);
   verTimer = setTimeout(function(){
     VERIFIED = true;
     renderVer();
+    $("verPlate").classList.remove("pend");
+    $("verPlate").classList.add("done");
     $("verHeadline").removeAttribute("data-i18n");
     $("verHeadline").textContent = (I18N[LANG].verHeadDone);
     $("verSub").removeAttribute("data-i18n");
-    $("verSub").innerHTML = I18N[LANG].verSubDone.replace("{email}", "<b style=\"color:var(--acc)\">" + em + "</b>");
+    $("verSub").innerHTML = I18N[LANG].verSubDone.replace("{email}", "<b class=\"emchip\">" + em + "</b>");
     $("verFine").style.display = "none";
     $("verCont").style.display = "";
   }, 2200);
@@ -243,11 +234,33 @@ $("verCont").addEventListener("click", function(){
   go("p2");
 });
 
+/* specific-framework contact flow */
+$("reachBtn").addEventListener("click", function(){
+  var em = $("reachEm").value.trim();
+  if (!em || em.indexOf("@") < 1){ $("reachEm").focus(); return; }
+  $("reachEmOut").textContent = em;
+  $("rfForm").style.display = "none";
+  $("rfDone").style.display = "";
+  $("reachPlate").classList.add("done");
+});
+$("reachBack").addEventListener("click", function(){ go("p1"); });
+$("reachBack2").addEventListener("click", function(){
+  $("rfForm").style.display = "";
+  $("rfDone").style.display = "none";
+  $("reachPlate").classList.remove("done");
+  go("p1");
+});
+$("reachMaster").addEventListener("click", function(){
+  $("dMaster").click();
+  $("contBtn").click();
+});
+
 $("reqBtn").addEventListener("click", function(){
   var em = $("reqEm").value.trim();
   if (!em || em.indexOf("@") < 1){ $("reqEm").focus(); return; }
   var names = sel.filter(function(f){ return f.req; }).map(function(f){ return f.name; }).join(" \u00b7 ");
   $("sentFw").textContent = names;
+  $("sentFw").style.display = names ? "" : "none";
   $("sentEm").textContent = em;
   go("pSent");
 });
@@ -261,6 +274,7 @@ function launch(){
   $("lsFw").textContent = c.n;
   $("lsQ").textContent = c.asked;
   $("lsT").textContent = c.min;
+  $("scopeChips").innerHTML = sel.map(function(f){ return "<i>"+f.name+"</i>"; }).join("");
   go("p3");
 }
 $("back1").addEventListener("click", function(){ go("p1"); });
@@ -277,7 +291,7 @@ var I18N = {
     mTitle:"Master framework",
     mDesc:"We assemble the full set that binds you, plus whatever your region requires. One assessment. One profile. Every framework satisfied from the same answers.",
     sTitle:"Specific framework",
-    sDesc:"You already know what you are certifying against, or a regulator has named it. Select one standard and we scope to that alone.",
+    sDesc:"You already know what you are certifying against, or a regulator has named it. Leave a work email and our team scopes it with you.",
     contCta:"Continue \u2192",
     eye2:"Step two",
     h2m:"Scope the <em>master set.</em>", h2s:"Pick your <em>standard.</em>",
@@ -295,9 +309,15 @@ var I18N = {
     verP:"A specific-framework assessment is issued to a named organisation. Verify a work email to continue.",
     verCta:"Verify email", goHelp:"Verify a work email above to begin.",
     verHeadPending:"Verifying your email.",
-    verSubPending:"We sent a confirmation link to <b id=\"verEmOut\" style=\"color:var(--acc)\"></b>. This assessment starts once it is verified.",
+    verSubPending:"We sent a confirmation link to <b id=\"verEmOut\" class=\"emchip\"></b>. This assessment starts once it is verified.",
     verFinePending:"Usually a few seconds in this demo. In production, this waits for the actual click.",
     verBack:"\u2190 Back to frameworks", verContCta:"Continue to assessment \u2192",
+    reachT:"A specific framework, scoped with you.",
+    reachP:"Regional and named standards are onboarded per organisation. Leave a work email and our team scopes it with you.",
+    reachCta:"Request scoping \u2192", reachBack:"\u2190 Change path",
+    reachDT:"We will get back to you.",
+    reachDP1:"Your request is with the team. Expect a reply at", reachDP2:"within five working days.",
+    reachBack2:"\u2190 Back to start", reachMaster:"Use the master framework \u2192",
     verHeadDone:"Email verified.",
     verSubDone:"{email} is confirmed. You can begin the assessment now.",
     sentT:"Request received.",
@@ -319,7 +339,7 @@ var I18N = {
     mTitle:"\u0627\u0644\u0625\u0637\u0627\u0631 \u0627\u0644\u0631\u0626\u064a\u0633\u064a",
     mDesc:"\u0646\u062c\u0645\u0639 \u0627\u0644\u0645\u062c\u0645\u0648\u0639\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u0627\u0644\u062a\u064a \u062a\u0644\u0632\u0645\u0643\u060c \u0625\u0636\u0627\u0641\u0629 \u0625\u0644\u0649 \u0645\u0627 \u062a\u062a\u0637\u0644\u0628\u0647 \u0645\u0646\u0637\u0642\u062a\u0643. \u062a\u0642\u064a\u064a\u0645 \u0648\u0627\u062d\u062f. \u0645\u0644\u0641 \u0648\u0627\u062d\u062f.",
     sTitle:"\u0625\u0637\u0627\u0631 \u0645\u062d\u062f\u062f",
-    sDesc:"\u062a\u0639\u0631\u0641 \u0645\u0633\u0628\u0642\u064b\u0627 \u0645\u0627 \u0627\u0644\u0630\u064a \u062a\u0639\u062a\u0645\u062f \u0639\u0644\u064a\u0647. \u0627\u062e\u062a\u0631 \u0645\u0639\u064a\u0627\u0631\u064b\u0627 \u0648\u0627\u062d\u062f\u064b\u0627 \u0648\u0646\u062d\u0635\u0631 \u0627\u0644\u0646\u0637\u0627\u0642 \u0641\u064a\u0647.",
+    sDesc:"\u062a\u0639\u0631\u0641 \u0645\u0633\u0628\u0642\u064b\u0627 \u0645\u0627 \u0627\u0644\u0630\u064a \u062a\u0639\u062a\u0645\u062f \u0639\u0644\u064a\u0647. \u0627\u062a\u0631\u0643 \u0628\u0631\u064a\u062f \u0627\u0644\u0639\u0645\u0644 \u0648\u064a\u062a\u0648\u0644\u0649 \u0641\u0631\u064a\u0642\u0646\u0627 \u062a\u062d\u062f\u064a\u062f \u0627\u0644\u0646\u0637\u0627\u0642 \u0645\u0639\u0643.",
     contCta:"\u0645\u062a\u0627\u0628\u0639\u0629 \u2190",
     eye2:"\u0627\u0644\u062e\u0637\u0648\u0629 \u0627\u0644\u062b\u0627\u0646\u064a\u0629",
     h2m:"\u062d\u062f\u0651\u062f \u0646\u0637\u0627\u0642 <em>\u0627\u0644\u0645\u062c\u0645\u0648\u0639\u0629 \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629.</em>", h2s:"\u0627\u062e\u062a\u0631 <em>\u0645\u0639\u064a\u0627\u0631\u0643.</em>",
@@ -337,9 +357,15 @@ var I18N = {
     verP:"\u064a\u064f\u0635\u062f\u0631 \u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0625\u0637\u0627\u0631 \u0627\u0644\u0645\u062d\u062f\u062f \u0628\u0627\u0633\u0645 \u0645\u0624\u0633\u0633\u0629 \u0645\u062d\u062f\u062f\u0629. \u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0628\u0631\u064a\u062f \u0639\u0645\u0644 \u0644\u0644\u0645\u062a\u0627\u0628\u0639\u0629.",
     verCta:"\u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0627\u0644\u0628\u0631\u064a\u062f", goHelp:"\u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0628\u0631\u064a\u062f \u0623\u0639\u0644\u0627\u0647 \u0644\u0644\u0628\u062f\u0621.",
     verHeadPending:"\u062c\u0627\u0631\u064d \u0627\u0644\u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0628\u0631\u064a\u062f\u0643.",
-    verSubPending:"\u0623\u0631\u0633\u0644\u0646\u0627 \u0631\u0627\u0628\u0637 \u062a\u0623\u0643\u064a\u062f \u0625\u0644\u0649 <b id=\"verEmOut\" style=\"color:var(--acc)\"></b>. \u064a\u0628\u062f\u0623 \u0647\u0630\u0627 \u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0628\u0645\u062c\u0631\u062f \u0627\u0644\u062a\u062d\u0642\u0651\u0642.",
+    verSubPending:"\u0623\u0631\u0633\u0644\u0646\u0627 \u0631\u0627\u0628\u0637 \u062a\u0623\u0643\u064a\u062f \u0625\u0644\u0649 <b id=\"verEmOut\" class=\"emchip\"></b>. \u064a\u0628\u062f\u0623 \u0647\u0630\u0627 \u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0628\u0645\u062c\u0631\u062f \u0627\u0644\u062a\u062d\u0642\u0651\u0642.",
     verFinePending:"\u0639\u0627\u062f\u0629\u064b \u0628\u0636\u0639 \u062b\u0648\u0627\u0646\u064d \u0641\u064a \u0647\u0630\u0647 \u0627\u0644\u0646\u0633\u062e\u0629 \u0627\u0644\u062a\u062c\u0631\u064a\u0628\u064a\u0629. \u0641\u064a \u0627\u0644\u0625\u0646\u062a\u0627\u062c\u060c \u064a\u064f\u0646\u062a\u0638\u0631 \u0627\u0644\u0646\u0642\u0631 \u0627\u0644\u0641\u0639\u0644\u064a.",
     verBack:"\u2192 \u0639\u0648\u062f\u0629 \u0644\u0644\u0623\u0637\u0631", verContCta:"\u062a\u0627\u0628\u0639 \u0625\u0644\u0649 \u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u2190",
+    reachT:"\u0625\u0637\u0627\u0631 \u0645\u062d\u062f\u062f\u060c \u0646\u062d\u062f\u062f \u0646\u0637\u0627\u0642\u0647 \u0645\u0639\u0643.",
+    reachP:"\u062a\u064f\u0636\u0627\u0641 \u0627\u0644\u0645\u0639\u0627\u064a\u064a\u0631 \u0627\u0644\u0625\u0642\u0644\u064a\u0645\u064a\u0629 \u0648\u0627\u0644\u0645\u062d\u062f\u062f\u0629 \u0644\u0643\u0644 \u0645\u0646\u0638\u0645\u0629 \u0639\u0644\u0649 \u062d\u062f\u0629. \u0627\u062a\u0631\u0643 \u0628\u0631\u064a\u062f \u0627\u0644\u0639\u0645\u0644 \u0648\u064a\u062a\u0648\u0644\u0649 \u0641\u0631\u064a\u0642\u0646\u0627 \u062a\u062d\u062f\u064a\u062f \u0627\u0644\u0646\u0637\u0627\u0642 \u0645\u0639\u0643.",
+    reachCta:"\u0627\u0637\u0644\u0628 \u062a\u062d\u062f\u064a\u062f \u0627\u0644\u0646\u0637\u0627\u0642 \u2190", reachBack:"\u2192 \u063a\u064a\u0651\u0631 \u0627\u0644\u0645\u0633\u0627\u0631",
+    reachDT:"\u0633\u0646\u0639\u0627\u0648\u062f \u0627\u0644\u062a\u0648\u0627\u0635\u0644 \u0645\u0639\u0643.",
+    reachDP1:"\u0637\u0644\u0628\u0643 \u0644\u062f\u0649 \u0627\u0644\u0641\u0631\u064a\u0642. \u062a\u0648\u0642\u0639 \u0631\u062f\u064b\u0627 \u0639\u0644\u0649", reachDP2:"\u062e\u0644\u0627\u0644 \u062e\u0645\u0633\u0629 \u0623\u064a\u0627\u0645 \u0639\u0645\u0644.",
+    reachBack2:"\u2192 \u0627\u0644\u0639\u0648\u062f\u0629 \u0625\u0644\u0649 \u0627\u0644\u0628\u062f\u0627\u064a\u0629", reachMaster:"\u0627\u0633\u062a\u062e\u062f\u0645 \u0627\u0644\u0625\u0637\u0627\u0631 \u0627\u0644\u0631\u0626\u064a\u0633\u064a \u2190",
     verHeadDone:"\u062a\u0645 \u0627\u0644\u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0627\u0644\u0628\u0631\u064a\u062f.",
     verSubDone:"\u062a\u0645 \u062a\u0623\u0643\u064a\u062f {email}. \u064a\u0645\u0643\u0646\u0643 \u0628\u062f\u0621 \u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0622\u0646.",
     sentT:"\u062a\u0645 \u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0637\u0644\u0628.",

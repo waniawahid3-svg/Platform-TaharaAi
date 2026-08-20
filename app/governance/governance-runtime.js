@@ -35,6 +35,7 @@ export function initGovernance(){
     });
   });
   var btn = document.getElementById("themeTg");
+  try{ var _s = localStorage.getItem("tahara-theme"); if (_s) document.documentElement.dataset.theme = _s; }catch(e){}
   btn.addEventListener("click", function(){
     var t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = t;

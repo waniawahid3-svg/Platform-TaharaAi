@@ -1151,7 +1151,7 @@ html,body{margin:0;padding:0}
 .gvx{
   --font-ui:'Inter',system-ui,sans-serif;
   --font-mono:'JetBrains Mono',ui-monospace,monospace;
-  --bg:#EAF0F9; --card:#FFFFFF;
+  --bg:#EAF0F9; --paper:#EAF0F9; --card:#FFFFFF;
   --ink:#062451; --ink-70:rgba(6,36,81,.84); --ink-55:rgba(6,36,81,.7); --ink-40:rgba(6,36,81,.56);
   --line:#D8E2F0; --line-2:#C9D6EA;
   --acc:#2F6BD6; --acc-soft:rgba(47,107,214,.10);
@@ -1185,7 +1185,7 @@ html,body{margin:0;padding:0}
 .gvx [data-rv].in{opacity:1;transform:none;filter:blur(0)}
 
 /* nav */
-.gvx .nav{position:sticky;top:0;z-index:60;background:rgba(255,255,255,.82);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.gvx .nav{position:sticky;top:0;z-index:60;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
 .gvx .nav::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--acc),var(--mint));transform-origin:left;transform:scaleX(var(--sp,0))}
 .gvx .nav.scrolled{box-shadow:0 10px 28px -18px rgba(6,36,81,.3)}
 .gvx .nav-in{max-width:1240px;margin:0 auto;padding:0 30px;height:62px;display:flex;align-items:center;gap:36px}
@@ -1456,7 +1456,7 @@ html[data-theme="dark"] .gvx .reachrow input{background:rgba(4,27,63,.7);border-
 
 /* ═══ DARK ═══ */
 html[data-theme="dark"] .gvx{
-  --bg:#041B3F; --card:rgba(6,26,56,.6);
+  --bg:#061422; --paper:#061422; --card:rgba(6,26,56,.6);
   --ink:rgba(234,240,249,.94); --ink-70:rgba(234,240,249,.84); --ink-55:rgba(234,240,249,.6); --ink-40:rgba(234,240,249,.45);
   --line:rgba(234,240,249,.13); --line-2:rgba(234,240,249,.22);
   --acc:#69A5FF; --acc-soft:rgba(105,165,255,.13); --badc:#FF8A65; --warn:#F0C36D;
@@ -1464,7 +1464,7 @@ html[data-theme="dark"] .gvx{
 html[data-theme="dark"] .gvx .atmo .grid{background:linear-gradient(rgba(234,240,249,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(234,240,249,.032) 1px,transparent 1px);background-size:52px 52px}
 html[data-theme="dark"] .gvx .atmo .a{background:radial-gradient(circle,rgba(105,165,255,.1),transparent 65%)}
 html[data-theme="dark"] .gvx .atmo .b{background:radial-gradient(circle,rgba(127,168,240,.11),transparent 65%)}
-html[data-theme="dark"] .gvx .nav{background:rgba(4,20,46,.82)}
+html[data-theme="dark"] .gvx .nav{background:color-mix(in srgb,var(--paper) 88%,transparent)}
 html[data-theme="dark"] .gvx .lang{background:rgba(3,16,38,.5);border-color:var(--line)}
 html[data-theme="dark"] .gvx .lang button{color:rgba(234,240,249,.55)}
 html[data-theme="dark"] .gvx .lang button[aria-pressed="true"]{background:rgba(234,240,249,.92);color:#062451}

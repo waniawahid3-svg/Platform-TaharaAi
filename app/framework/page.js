@@ -13,7 +13,7 @@ export default function FrameworkPage(){
     <div className="fwr">
     <header className="top">
       <div className="top-in">
-        <Link className="brand" href="/overview"><span className="mk">T</span><span><b>Tahara AI</b><i>CONTINUOUS ASSURANCE</i></span></Link>
+        <Link className="brand" href="/overview"><svg viewBox="0 0 28 28" fill="none" aria-hidden="true" style={{width:'26px', height:'26px', flex:'none'}}><path d="M14 4 24 9.4 14 14.8 4 9.4 14 4Z" fill="#2F6BD6"/><path d="M14 12.6 24 18l-10 5.4L4 18l10-5.4Z" fill="#7FA8EC"/></svg><span><b>Tahara AI</b><i>CONTINUOUS ASSURANCE</i></span></Link>
         <nav className="tnav">
           <Link href="/overview" data-lk="nOverview">Overview</Link><Link href="/governance" data-lk="nGov">Governance</Link>
           <Link className="on" href="/framework" data-lk="nFw">Frameworks</Link><a href="#" data-lk="nDisc" onClick={(e)=>e.preventDefault()}>Discovery</a>

@@ -2,8 +2,7 @@
 
 /* Runtime for the Tahara platform pages, lifted unchanged from the reviewed
    HTML build. Everything runs inside run(), so it executes on mount when the
-   markup is in the DOM, exactly as it did on page load. Each init returns a
-   dispose function that unwinds its observers and listeners. */
+   markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
 export function run(which){
 
@@ -1207,8 +1206,12 @@ function initChat(){
       var t = TX[lang];
       bot(t.finish +
         '<div class="why">' + t.landed(est, finds) + '</div>' +
-        '<div style="margin-top:18px"><a class="btn-p" href="/governance"><span>' + t.viewGap + '</span>' +
+        '<div style="margin-top:18px"><a class="btn-p" href="/gap"><span>' + t.viewGap + '</span>' +
         '<svg viewBox="0 0 14 14" fill="none"><path d="M3 7h8M8 3.5 11.5 7 8 10.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>');
+    var gcta = S.querySelector('a[href="/gap"]');
+    if (gcta && typeof window.mount === "function"){
+      gcta.addEventListener("click", function(e){ e.preventDefault(); window.mount("gap"); });
+    }
     }
 
     S.addEventListener("click", function(e){
@@ -1260,8 +1263,397 @@ function initChat(){
   };
 }
 
+function initGap(){
+  const _ios = [];
+  const _timers = [];
+  const _origIO = window.IntersectionObserver;
+  window.IntersectionObserver = function(cb, opts){ const io = new _origIO(cb, opts); _ios.push(io); return io; };
+  const _origST = window.setTimeout.bind(window);
+  window.setTimeout = function(fn, ms){ const id = _origST(fn, ms); _timers.push(id); return id; };
+  try{
 
-  const INIT = { guardrails: initGuardrails, discovery: initDiscovery, assessment: initChat };
+  var root = document.querySelector(".gpx");
+    var RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    /* ---------- strings ---------- */
+    var T = {
+      en:{
+        n1:"Overview",n2:"Governance",n3:"Frameworks",n4:"Discovery",n5:"Adversarial",n6:"Guardrails",signout:"Sign out",
+        crumb:"BACK TO THE INTERVIEW", h1:"Gap assessment",
+        metaA:"MASTER SCOPE · 187 REQUIREMENTS · GENERATED TODAY", metaB:"COLLECTOR LIVE",
+        rerun:"Re-run interview", export:"Export report",
+        k1l:"READINESS", k1s:"Share of the 187 master-scope requirements that are established and evidenced today.",
+        k2l:"REQUIREMENTS MAPPED", k2s:"23 from documents, 14 observed by discovery, the rest attested in the interview.",
+        k3l:"FINDINGS ON THE REGISTER", k3c:"2 MAJOR NONCONFORMITIES", k3s:"Both majors block ISO/IEC 42001 certification until closed.",
+        k4l:"REMAINING QUESTIONS", k4c:"CANNOT CHANGE THE OUTCOME", k4s:"Deferred: none can alter the findings already established.",
+        covT:"Framework coverage", covS:"OVERLAP COUNTED ONCE ACROSS THE MASTER SET", ccS:"REQUIREMENTS SATISFIED",
+        regT:"Findings register", regS:"11 FINDINGS · TRIANGULATED AGAINST LIVE SYSTEM STATE",
+        regH:"SEVERITY · FINDING · OWNER · DUE · STATUS",
+        fAll:"ALL", fMaj:"MAJOR", fMin:"MINOR", fObs:"OBSERVATION", fDet:"DETERMINATION",
+        regF:"MAJORS STAY OPEN UNTIL THE COLLECTOR OBSERVES THEM RESOLVED, NOT UNTIL SOMEONE REPORTS THEM DONE.",
+        remT:"REMEDIATION PRIORITIES", provT:"EVIDENCE PROVENANCE", colT:"COLLECTOR",
+        pv1:"From documents", pv2:"Observed by discovery", pv3:"Attested in interview", pv4:"Not yet asked",
+        c1:"Status", c2:"Watching", c3:"Probes run", c4:"Next sweep", cLive:"LIVE",
+        ft1:"TAHARA AI · CONTINUOUS ASSURANCE PLATFORM", ft2:"SAFE · ETHICAL · TRANSPARENT",
+        sev:{maj:"MAJOR",min:"MINOR",obs:"OBSERVATION",det:"DETERMINATION"},
+        stat:{open:"OPEN",prog:"IN PROGRESS",final:"FINAL",watch:"MONITORING"},
+        days:function(d){ return d + " days"; }, dash:"—",
+        unlocks:function(n){ return "UNBLOCKS " + n + " REQUIREMENTS"; },
+        effS:"SMALL", effM:"MEDIUM"
+      },
+      ar:{
+        n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
+        crumb:"العودة إلى المقابلة", h1:"تقييم الفجوات",
+        metaA:"النطاق الرئيسي · 187 متطلبا · أُنشئ اليوم", metaB:"المُجمّع مباشر",
+        rerun:"إعادة المقابلة", export:"تصدير التقرير",
+        k1l:"الجاهزية", k1s:"نسبة متطلبات النطاق الرئيسي الـ187 المُثبتة والمدعومة بالأدلة اليوم.",
+        k2l:"المتطلبات المُغطاة", k2s:"23 من المستندات، و14 رصدها الاستكشاف، والبقية أُقرت في المقابلة.",
+        k3l:"الملاحظات في السجل", k3c:"حالتا عدم مطابقة كبرى", k3s:"الحالتان الكبريان تمنعان اعتماد آيزو 42001 حتى إغلاقهما.",
+        k4l:"الأسئلة المتبقية", k4c:"لا يمكنها تغيير النتيجة", k4s:"مؤجلة: لا يمكن لأي منها تغيير الملاحظات المُثبتة.",
+        covT:"تغطية الأُطر", covS:"يُحتسب التداخل مرة واحدة عبر المجموعة الرئيسية", ccS:"متطلبات مستوفاة",
+        regT:"سجل الملاحظات", regS:"11 ملاحظة · مُثلثة مقابل حالة النظام الحية",
+        regH:"الخطورة · الملاحظة · المالك · الاستحقاق · الحالة",
+        fAll:"الكل", fMaj:"كبرى", fMin:"صغرى", fObs:"مشاهدة", fDet:"تقرير",
+        regF:"تبقى الحالات الكبرى مفتوحة حتى يرصد المُجمّع معالجتها، لا حتى يُبلغ أحد بإنجازها.",
+        remT:"أولويات المعالجة", provT:"مصدر الأدلة", colT:"المُجمّع",
+        pv1:"من المستندات", pv2:"رصدها الاستكشاف", pv3:"أُقرت في المقابلة", pv4:"لم تُطرح بعد",
+        c1:"الحالة", c2:"قيد المراقبة", c3:"الفحوصات", c4:"المسح التالي", cLive:"مباشر",
+        ft1:"تهارا · منصة الضمان المستمر", ft2:"آمن · أخلاقي · شفاف",
+        sev:{maj:"كبرى",min:"صغرى",obs:"مشاهدة",det:"تقرير"},
+        stat:{open:"مفتوحة",prog:"قيد المعالجة",final:"نهائي",watch:"مراقبة"},
+        days:function(d){ return d + " يوما"; }, dash:"—",
+        unlocks:function(n){ return "يفتح " + n + " متطلبا"; },
+        effS:"صغير", effM:"متوسط"
+      }
+    };
+
+    /* ---------- data ---------- */
+    var FINDS = [
+      { code:"ISO 42001 · A.4.2", sev:"maj", stat:"open", due:14, own:{en:"Platform team", ar:"فريق المنصة"},
+        t:{en:"Documented access control is not operating: 3 non-engineering principals on s3://prod-models.",
+           ar:"ضبط الوصول الموثق غير مطبق: 3 جهات من خارج الهندسة على s3://prod-models."} },
+      { code:"ISO 42001 · CL. 9.2", sev:"maj", stat:"open", due:30, own:{en:"GRC office", ar:"مكتب الحوكمة"},
+        t:{en:"No internal audit records in the last 12 months.",
+           ar:"لا سجلات تدقيق داخلي خلال الأشهر الاثني عشر الماضية."} },
+      { code:"EU AI ACT · ART. 6(3)", sev:"det", stat:"final", due:0, own:{en:"Legal counsel", ar:"المستشار القانوني"},
+        t:{en:"System is high-risk: Annex III employment with profiling; the derogation is unavailable.",
+           ar:"النظام عالي المخاطر: توظيف ضمن الملحق الثالث مع تنميط، والاستثناء غير متاح."} },
+      { code:"EU AI ACT · ART. 19", sev:"min", stat:"prog", due:7, own:{en:"Platform team", ar:"فريق المنصة"},
+        t:{en:"Log retention is 30 days on s3://prod-logs, below the six-month floor.",
+           ar:"مدة الاحتفاظ بالسجلات 30 يوما على s3://prod-logs، دون الحد الأدنى بستة أشهر."} },
+      { code:"ISO 42001 · CL. 7.3", sev:"min", stat:"prog", due:30, own:{en:"GRC office", ar:"مكتب الحوكمة"},
+        t:{en:"Control-owner awareness does not match observed system state.",
+           ar:"وعي مالك الضابط لا يطابق حالة النظام المرصودة."} },
+      { code:"EU AI ACT · ART. 10(2)(f)", sev:"min", stat:"open", due:45, own:{en:"ML engineering", ar:"هندسة التعلم الآلي"},
+        t:{en:"No documented bias examination of the training data.",
+           ar:"لا فحص موثقا للتحيز في بيانات التدريب."} },
+      { code:"ISO 23894 · CL. 6.1", sev:"min", stat:"open", due:45, own:{en:"GRC office", ar:"مكتب الحوكمة"},
+        t:{en:"Risk register review cadence is not evidenced across the lifecycle.",
+           ar:"لا دليل على وتيرة مراجعة سجل المخاطر عبر دورة الحياة."} },
+      { code:"EU AI ACT · ART. 72", sev:"min", stat:"open", due:60, own:{en:"GRC office", ar:"مكتب الحوكمة"},
+        t:{en:"No post-market monitoring plan proportionate to a high-risk system.",
+           ar:"لا خطة مراقبة بعد الطرح تتناسب مع نظام عالي المخاطر."} },
+      { code:"ISO 42001 · A.10.2", sev:"min", stat:"open", due:60, own:{en:"Legal counsel", ar:"المستشار القانوني"},
+        t:{en:"Supplier agreements carry no AI-specific obligations or audit rights.",
+           ar:"اتفاقيات المورّدين لا تتضمن التزامات خاصة بالذكاء الاصطناعي أو حقوق تدقيق."} },
+      { code:"EU AI ACT · ART. 27", sev:"min", stat:"open", due:45, own:{en:"Legal counsel", ar:"المستشار القانوني"},
+        t:{en:"No fundamental rights impact assessment recorded before first use.",
+           ar:"لا تقييم أثر على الحقوق الأساسية مسجلا قبل أول استخدام."} },
+      { code:"ISO 42001 · CL. 7.2", sev:"obs", stat:"open", due:30, own:{en:"People ops", ar:"شؤون الموظفين"},
+        t:{en:"Operator competence is not evidenced; no training records for recruiters.",
+           ar:"كفاءة المشغلين غير مدعومة بأدلة؛ لا سجلات تدريب للمسؤولين عن التوظيف."} }
+    ];
+
+    var REM = [
+      { n:1, eff:"s", unlocks:8,  t:{en:"Extend the s3://prod-logs lifecycle rule to at least six months.",
+                                     ar:"مدّد قاعدة دورة الحياة على s3://prod-logs إلى ستة أشهر على الأقل."} },
+      { n:2, eff:"s", unlocks:11, t:{en:"Revoke or re-scope the 3 non-engineering principals on prod-models.",
+                                     ar:"ألغِ أو أعد تحديد صلاحيات الجهات الثلاث من خارج الهندسة على prod-models."} },
+      { n:3, eff:"m", unlocks:9,  t:{en:"Stand up the internal audit cycle and run the first audit.",
+                                     ar:"فعّل دورة التدقيق الداخلي ونفّذ التدقيق الأول."} },
+      { n:4, eff:"m", unlocks:21, t:{en:"Run and document the Article 10 bias examination.",
+                                     ar:"نفّذ فحص التحيز بموجب المادة 10 ووثّقه."} },
+      { n:5, eff:"m", unlocks:11, t:{en:"Complete the fundamental rights impact assessment before the next deployment.",
+                                     ar:"أكمل تقييم الأثر على الحقوق الأساسية قبل النشر التالي."} }
+    ];
+
+    /* ---------- language ---------- */
+    var lang = "en";
+    try{ var sl = localStorage.getItem("tahara-lang"); if(sl === "ar" || sl === "en") lang = sl; }catch(e){}
+    function applyLang(){
+      var d = T[lang];
+      document.documentElement.lang = lang === "ar" ? "ar" : "en";
+      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+      root.querySelectorAll("[data-i]").forEach(function(el){
+        var v = d[el.getAttribute("data-i")];
+        if(typeof v === "string") el.textContent = v;
+      });
+      root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
+        b.classList.toggle("on", b.getAttribute("data-lang") === lang);
+      });
+      renderRows(); renderRem();
+      try{ localStorage.setItem("tahara-lang", lang); }catch(e){}
+    }
+    root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
+      b.addEventListener("click", function(){
+        if(lang === b.getAttribute("data-lang")) return;
+        lang = b.getAttribute("data-lang"); applyLang();
+      });
+    });
+
+    /* ---------- theme ---------- */
+    try{ var st = localStorage.getItem("tahara-theme"); if(st) document.documentElement.dataset.theme = st; }catch(e){}
+    document.getElementById("gpTheme").addEventListener("click", function(){
+      var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = n;
+      try{ localStorage.setItem("tahara-theme", n); }catch(e){}
+    });
+
+    /* ---------- register ---------- */
+    var filter = "all";
+    function renderRows(){
+      var d = T[lang];
+      var box = document.getElementById("gpRows");
+      box.innerHTML = FINDS.filter(function(f){ return filter === "all" || f.sev === filter; })
+        .map(function(f){
+          return '<div class="frow">' +
+            '<span class="sev ' + f.sev + '">' + d.sev[f.sev] + '</span>' +
+            '<span class="fc2"><span class="code keep">' + f.code + '</span>' +
+            '<div class="txt">' + f.t[lang] + '</div></span>' +
+            '<span class="own">' + f.own[lang] + '</span>' +
+            '<span class="due keep">' + (f.due ? d.days(f.due) : d.dash) + '</span>' +
+            '<span class="stat ' + f.stat + '">' + d.stat[f.stat] + '</span>' +
+          '</div>';
+        }).join("");
+    }
+    document.getElementById("gpFilters").addEventListener("click", function(e){
+      var b = e.target.closest(".flt"); if(!b) return;
+      filter = b.getAttribute("data-f");
+      this.querySelectorAll(".flt").forEach(function(x){ x.classList.toggle("on", x === b); });
+      renderRows();
+    });
+
+    /* ---------- remediation ---------- */
+    function renderRem(){
+      var d = T[lang];
+      document.getElementById("gpRem").innerHTML = REM.map(function(r){
+        return '<div class="ri"><span class="rk keep">' + r.n + '</span>' +
+          '<span><span class="rt">' + r.t[lang] + '</span>' +
+          '<span class="rm"><span class="eff ' + r.eff + '">' + (r.eff === "s" ? d.effS : d.effM) + '</span>' +
+          '<span class="imp">' + d.unlocks(r.unlocks) + '</span></span></span></div>';
+      }).join("");
+    }
+
+    /* ---------- counters, bars, reveal ---------- */
+    function countUp(el, to, ms){
+      if(RM){ el.textContent = to; return; }
+      var t0 = performance.now();
+      (function tick(now){
+        var p = Math.min(1, (now - t0) / ms);
+        el.textContent = Math.round(to * (p < .5 ? 2*p*p : 1 - Math.pow(-2*p+2, 2)/2));
+        if(p < 1) requestAnimationFrame(tick);
+      })(t0);
+    }
+    var fired = false;
+    function fire(){
+      if(fired) return; fired = true;
+      countUp(document.getElementById("gpPct"), 90, 1200);
+      countUp(document.getElementById("gpMapped"), 168, 1200);
+      countUp(document.getElementById("gpFinds"), 11, 900);
+      countUp(document.getElementById("gpLeft"), 19, 900);
+      root.querySelectorAll(".fp [data-n]").forEach(function(el){ countUp(el, +el.getAttribute("data-n"), 1200); });
+      setTimeout(function(){
+        document.getElementById("gpRing").style.strokeDashoffset = String(239 * (1 - .9));
+        document.getElementById("gpMapBar").style.width = (168/187*100) + "%";
+        root.querySelectorAll("[data-w]").forEach(function(el){ el.style.width = el.getAttribute("data-w") + "%"; });
+      }, RM ? 0 : 150);
+    }
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        e.target.classList.add("in");
+        if(e.target.closest(".kband") || e.target.classList.contains("cc")) fire();
+        io.unobserve(e.target);
+      });
+    }, { threshold:.15 });
+    root.querySelectorAll(".rv").forEach(function(el){ io.observe(el); });
+    setTimeout(fire, RM ? 0 : 700);
+
+    applyLang();
+
+  } finally {
+    window.IntersectionObserver = _origIO;
+    window.setTimeout = _origST;
+  }
+  return function dispose(){
+    _ios.forEach(function(io){ io.disconnect(); });
+    _timers.forEach(function(id){ clearTimeout(id); });
+  };
+}
+
+function initReport(){
+  const _timers = [];
+  const _origST = window.setTimeout.bind(window);
+  window.setTimeout = function(fn, ms){ const id = _origST(fn, ms); _timers.push(id); return id; };
+  try{
+
+  var root = document.querySelector(".rpx");
+
+    var T = {
+      en:{
+        n1:"Overview",n2:"Governance",n3:"Frameworks",n4:"Discovery",n5:"Adversarial",n6:"Guardrails",signout:"Sign out",
+        crumb:"BACK TO THE DASHBOARD", print:"Print or save as PDF",
+        refL:"REFERENCE", dateL:"GENERATED", conf:"CONFIDENTIAL · INTERNAL",
+        h1:"Gap assessment report",
+        subA:"MASTER SCOPE · EU AI ACT · ISO/IEC 42001 · ISO/IEC 23894 · NIST AI RMF · 187 REQUIREMENTS", subB:"COLLECTOR LIVE",
+        s1:"Executive summary", s2:"At a glance", s3:"Framework coverage", s4:"Findings register",
+        s5:"Remediation plan", s6:"Method and evidence",
+        p1:'The assessed system is a cloud-delivered employment screening service that profiles natural persons, which classifies it as high-risk under Annex III of the EU AI Act with the Article 6(3) derogation unavailable. Of the 187 requirements in the master scope, <b>168 are established and evidenced</b>, a readiness of 90 percent. <b>Eleven findings</b> sit on the register, of which <b>two are major nonconformities</b> that block ISO/IEC 42001 certification until closed: access control that is documented but not operating, and the absence of internal audit records. Both were triangulated against live system state observed by the discovery collector, not self-reported.',
+        p6:'Of the 187 requirements, <b>23</b> were established from uploaded documents with citations to source, <b>14</b> were observed directly by the discovery collector against live infrastructure, and <b>131</b> were attested in a structured fifteen-question interview. Nineteen requirements were deferred because no answer to them can change the findings above. Findings tied to system state remain under continuous observation: they close when the collector observes remediation, not when it is reported.',
+        g1l:"READINESS", g1s:"of the master scope evidenced",
+        g2l:"REQUIREMENTS", g2s:"mapped, overlap counted once",
+        g3l:"FINDINGS", g3s:"2 major nonconformities",
+        g4l:"DEFERRED", g4s:"cannot change the outcome",
+        t1a:"FRAMEWORK", t1b:"SATISFIED", t1c:"COVERAGE",
+        t2a:"CLAUSE", t2b:"SEVERITY", t2c:"FINDING", t2d:"OWNER", t2e:"DUE", t2f:"STATUS",
+        sgB:"Tahara assurance engine", sgS:"Master framework assessment · interview and discovery triangulation",
+        stamp1:"COLLECTOR · LIVE", stamp2:"PROBES RUN · 1,318",
+        sev:{maj:"MAJOR",min:"MINOR",obs:"OBSERVATION",det:"DETERMINATION"},
+        stat:{open:"OPEN",prog:"IN PROGRESS",final:"FINAL"},
+        days:function(d){ return d + " days"; }, dash:"—",
+        unlocks:function(n){ return "UNBLOCKS " + n + " REQUIREMENTS"; }, effS:"SMALL EFFORT", effM:"MEDIUM EFFORT"
+      },
+      ar:{
+        n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
+        crumb:"العودة إلى لوحة المتابعة", print:"اطبع أو احفظ PDF",
+        refL:"المرجع", dateL:"تاريخ الإنشاء", conf:"سري · للاستخدام الداخلي",
+        h1:"تقرير تقييم الفجوات",
+        subA:"النطاق الرئيسي · القانون الأوروبي · آيزو 42001 · آيزو 23894 · نيست · 187 متطلبا", subB:"المُجمّع مباشر",
+        s1:"الملخص التنفيذي", s2:"لمحة سريعة", s3:"تغطية الأُطر", s4:"سجل الملاحظات",
+        s5:"خطة المعالجة", s6:"المنهجية والأدلة",
+        p1:'النظام المُقيَّم خدمة فرز للتوظيف تُقدَّم سحابيا وتقوم بتنميط أشخاص طبيعيين، ما يصنفه عالي المخاطر بموجب الملحق الثالث من القانون الأوروبي مع عدم توفر استثناء المادة 6(3). من بين 187 متطلبا في النطاق الرئيسي، <b>جرى إثبات 168 متطلبا بالأدلة</b>، بجاهزية 90 بالمئة. في السجل <b>إحدى عشرة ملاحظة</b>، منها <b>حالتا عدم مطابقة كبرى</b> تمنعان اعتماد آيزو 42001 حتى إغلاقهما: ضبط وصول موثق لكنه غير مطبق، وغياب سجلات التدقيق الداخلي. وكلتاهما ثُلثت مقابل حالة النظام الحية التي رصدها مُجمّع الاستكشاف، لا عن طريق الإبلاغ الذاتي.',
+        p6:'من بين 187 متطلبا، جرى إثبات <b>23</b> من مستندات مرفوعة مع توثيق إلى المصدر، ورصد <b>14</b> مباشرة بواسطة مُجمّع الاستكشاف مقابل البنية الحية، وأُقر <b>131</b> في مقابلة منظمة من خمسة عشر سؤالا. وأُجل 19 متطلبا لأن أي إجابة عنها لا يمكن أن تغير الملاحظات أعلاه. وتبقى الملاحظات المرتبطة بحالة النظام تحت مراقبة مستمرة: تُغلق عندما يرصد المُجمّع المعالجة، لا عندما يُبلغ عنها.',
+        g1l:"الجاهزية", g1s:"من النطاق الرئيسي مدعوم بالأدلة",
+        g2l:"المتطلبات", g2s:"مُغطاة، والتداخل محسوب مرة واحدة",
+        g3l:"الملاحظات", g3s:"حالتا عدم مطابقة كبرى",
+        g4l:"المؤجلة", g4s:"لا يمكنها تغيير النتيجة",
+        t1a:"الإطار", t1b:"المستوفى", t1c:"التغطية",
+        t2a:"البند", t2b:"الخطورة", t2c:"الملاحظة", t2d:"المالك", t2e:"الاستحقاق", t2f:"الحالة",
+        sgB:"محرك الضمان في تهارا", sgS:"تقييم الإطار الرئيسي · تثليث المقابلة والاستكشاف",
+        stamp1:"المُجمّع · مباشر", stamp2:"الفحوصات · 1,318",
+        sev:{maj:"كبرى",min:"صغرى",obs:"مشاهدة",det:"تقرير"},
+        stat:{open:"مفتوحة",prog:"قيد المعالجة",final:"نهائي"},
+        days:function(d){ return d + " يوما"; }, dash:"—",
+        unlocks:function(n){ return "يفتح " + n + " متطلبا"; }, effS:"جهد صغير", effM:"جهد متوسط"
+      }
+    };
+
+    var FINDS = [
+      { code:"ISO 42001 · A.4.2", sev:"maj", stat:"open", due:14, own:{en:"Platform team", ar:"فريق المنصة"},
+        t:{en:"Documented access control is not operating: 3 non-engineering principals on s3://prod-models.",
+           ar:"ضبط الوصول الموثق غير مطبق: 3 جهات من خارج الهندسة على s3://prod-models."} },
+      { code:"ISO 42001 · CL. 9.2", sev:"maj", stat:"open", due:30, own:{en:"GRC office", ar:"مكتب الحوكمة"},
+        t:{en:"No internal audit records in the last 12 months.", ar:"لا سجلات تدقيق داخلي خلال الأشهر الاثني عشر الماضية."} },
+      { code:"EU AI ACT · ART. 6(3)", sev:"det", stat:"final", due:0, own:{en:"Legal counsel", ar:"المستشار القانوني"},
+        t:{en:"System is high-risk: Annex III employment with profiling; the derogation is unavailable.",
+           ar:"النظام عالي المخاطر: توظيف ضمن الملحق الثالث مع تنميط، والاستثناء غير متاح."} },
+      { code:"EU AI ACT · ART. 19", sev:"min", stat:"prog", due:7, own:{en:"Platform team", ar:"فريق المنصة"},
+        t:{en:"Log retention is 30 days on s3://prod-logs, below the six-month floor.",
+           ar:"مدة الاحتفاظ بالسجلات 30 يوما على s3://prod-logs، دون الحد الأدنى بستة أشهر."} },
+      { code:"ISO 42001 · CL. 7.3", sev:"min", stat:"prog", due:30, own:{en:"GRC office", ar:"مكتب الحوكمة"},
+        t:{en:"Control-owner awareness does not match observed system state.", ar:"وعي مالك الضابط لا يطابق حالة النظام المرصودة."} },
+      { code:"EU AI ACT · ART. 10(2)(f)", sev:"min", stat:"open", due:45, own:{en:"ML engineering", ar:"هندسة التعلم الآلي"},
+        t:{en:"No documented bias examination of the training data.", ar:"لا فحص موثقا للتحيز في بيانات التدريب."} },
+      { code:"ISO 23894 · CL. 6.1", sev:"min", stat:"open", due:45, own:{en:"GRC office", ar:"مكتب الحوكمة"},
+        t:{en:"Risk register review cadence is not evidenced across the lifecycle.", ar:"لا دليل على وتيرة مراجعة سجل المخاطر عبر دورة الحياة."} },
+      { code:"EU AI ACT · ART. 72", sev:"min", stat:"open", due:60, own:{en:"GRC office", ar:"مكتب الحوكمة"},
+        t:{en:"No post-market monitoring plan proportionate to a high-risk system.", ar:"لا خطة مراقبة بعد الطرح تتناسب مع نظام عالي المخاطر."} },
+      { code:"ISO 42001 · A.10.2", sev:"min", stat:"open", due:60, own:{en:"Legal counsel", ar:"المستشار القانوني"},
+        t:{en:"Supplier agreements carry no AI-specific obligations or audit rights.",
+           ar:"اتفاقيات المورّدين لا تتضمن التزامات خاصة بالذكاء الاصطناعي أو حقوق تدقيق."} },
+      { code:"EU AI ACT · ART. 27", sev:"min", stat:"open", due:45, own:{en:"Legal counsel", ar:"المستشار القانوني"},
+        t:{en:"No fundamental rights impact assessment recorded before first use.",
+           ar:"لا تقييم أثر على الحقوق الأساسية مسجلا قبل أول استخدام."} },
+      { code:"ISO 42001 · CL. 7.2", sev:"obs", stat:"open", due:30, own:{en:"People ops", ar:"شؤون الموظفين"},
+        t:{en:"Operator competence is not evidenced; no training records for recruiters.",
+           ar:"كفاءة المشغلين غير مدعومة بأدلة؛ لا سجلات تدريب للمسؤولين عن التوظيف."} }
+    ];
+
+    var REM = [
+      { eff:"s", unlocks:8,  t:{en:"Extend the s3://prod-logs lifecycle rule to at least six months.",
+                                ar:"مدّد قاعدة دورة الحياة على s3://prod-logs إلى ستة أشهر على الأقل."} },
+      { eff:"s", unlocks:11, t:{en:"Revoke or re-scope the 3 non-engineering principals on prod-models.",
+                                ar:"ألغِ أو أعد تحديد صلاحيات الجهات الثلاث من خارج الهندسة على prod-models."} },
+      { eff:"m", unlocks:9,  t:{en:"Stand up the internal audit cycle and run the first audit.",
+                                ar:"فعّل دورة التدقيق الداخلي ونفّذ التدقيق الأول."} },
+      { eff:"m", unlocks:21, t:{en:"Run and document the Article 10 bias examination.",
+                                ar:"نفّذ فحص التحيز بموجب المادة 10 ووثّقه."} },
+      { eff:"m", unlocks:11, t:{en:"Complete the fundamental rights impact assessment before the next deployment.",
+                                ar:"أكمل تقييم الأثر على الحقوق الأساسية قبل النشر التالي."} }
+    ];
+
+    var lang = "en";
+    try{ var sl = localStorage.getItem("tahara-lang"); if(sl === "ar" || sl === "en") lang = sl; }catch(e){}
+
+    function render(){
+      var d = T[lang];
+      document.documentElement.lang = lang === "ar" ? "ar" : "en";
+      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+      root.querySelectorAll("[data-i]").forEach(function(el){
+        var v = d[el.getAttribute("data-i")];
+        if(typeof v !== "string") return;
+        if(el.getAttribute("data-i") === "p1" || el.getAttribute("data-i") === "p6") el.innerHTML = v;
+        else el.textContent = v;
+      });
+      root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
+        b.classList.toggle("on", b.getAttribute("data-lang") === lang);
+      });
+      document.querySelector("#rpFinds tbody").innerHTML = FINDS.map(function(f){
+        return '<tr>' +
+          '<td class="mono keep">' + f.code + '</td>' +
+          '<td><span class="pill ' + f.sev + '">' + d.sev[f.sev] + '</span></td>' +
+          '<td>' + f.t[lang] + '</td>' +
+          '<td class="hidecol">' + f.own[lang] + '</td>' +
+          '<td class="num hidecol keep">' + (f.due ? d.days(f.due) : d.dash) + '</td>' +
+          '<td><span class="pill ' + f.stat + '">' + d.stat[f.stat] + '</span></td>' +
+        '</tr>';
+      }).join("");
+      document.getElementById("rpRem").innerHTML = REM.map(function(r){
+        return '<li><span>' + r.t[lang] +
+          '<span class="meta keep">' + (r.eff === "s" ? d.effS : d.effM) + ' · ' + d.unlocks(r.unlocks) + '</span></span></li>';
+      }).join("");
+      try{ localStorage.setItem("tahara-lang", lang); }catch(e){}
+    }
+    root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
+      b.addEventListener("click", function(){
+        if(lang === b.getAttribute("data-lang")) return;
+        lang = b.getAttribute("data-lang"); render();
+      });
+    });
+
+    try{ var st = localStorage.getItem("tahara-theme"); if(st) document.documentElement.dataset.theme = st; }catch(e){}
+    document.getElementById("rpTheme").addEventListener("click", function(){
+      var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = n;
+      try{ localStorage.setItem("tahara-theme", n); }catch(e){}
+    });
+
+    var now = new Date();
+    document.getElementById("rpDate").textContent =
+      now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0") + "-" + String(now.getDate()).padStart(2,"0");
+
+    render();
+
+  } finally {
+    window.setTimeout = _origST;
+  }
+  return function dispose(){
+    _timers.forEach(function(id){ clearTimeout(id); });
+  };
+}
+
+
+  const INIT = { guardrails: initGuardrails, discovery: initDiscovery, assessment: initChat, gap: initGap, report: initReport };
   const fn = INIT[which];
   return typeof fn === "function" ? fn() : function(){};
 }

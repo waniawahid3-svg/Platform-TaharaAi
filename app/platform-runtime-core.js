@@ -2,8 +2,7 @@
 
 /* Runtime for the Tahara platform pages, lifted unchanged from the reviewed
    HTML build. Everything runs inside run(), so it executes on mount when the
-   markup is in the DOM, exactly as it did on page load. Each init returns a
-   dispose function that unwinds its observers and listeners. */
+   markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
 export function run(which){
 

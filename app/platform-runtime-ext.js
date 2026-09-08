@@ -888,6 +888,12 @@ function initChat(){
     var qqueue = [];         // current real batch from GET /questions
     var qi = 0;              // index into qqueue
     var askedCount = 0;      // how many real questions have actually been shown -- not a fixed 15
+    // Real count of fields the extraction pipeline actually pulled from the uploaded
+    // documents (result.fields_extracted from POST .../documents). coverage.established
+    // deliberately excludes these until a human confirms or negates them -- see
+    // ccae/engine/gaps.py's coverage() docstring -- so it alone can't back the sidebar's
+    // "From documents" figure; this is that real number, tracked separately.
+    var docExtractedCount = null;
 
     /* the stream follows new content automatically, so each question and its
      options land in view without the reader having to scroll */
@@ -939,18 +945,24 @@ function initChat(){
     }
     function fmtVal(v){ try{ return esc(JSON.stringify(v)); }catch(e){ return esc(String(v)); } }
 
-    /* Sidebar reflects only what the real coverage() object actually reports.
-       "From documents" / "From discovery" have no real split in that object
-       (established only distinguishes USER_CONFIRMED/EXPLICITLY_NEGATED, not
-       source), and only EU AI Act is a real, wired framework here -- so those
-       fields show an honest em dash instead of an invented number. */
+    /* Sidebar reflects only what real data actually exists. "Established" is
+       coverage.established -- confirmed/negated facts only, per gaps.py's coverage()
+       (a document extraction alone never counts until a human confirms it, matching
+       the exclusion guardrail). "From documents" is the real fields_extracted count
+       from this engagement's own POST .../documents result, tracked separately since
+       coverage() doesn't carry a by-source split. "From discovery" is genuinely 0,
+       not unknown: this assessment flow has no Discovery integration to draw from
+       (see ccae/discovery_api's own module docstring on the two systems having no
+       runtime coupling). Only EU AI Act is a real, wired framework here, so the
+       other three framework figures show an honest em dash instead of an invented
+       number. */
     function upd(){
       var pct = coverage ? coverage.percent_complete : 0;
       document.getElementById("pct").textContent = Math.round(pct);
       document.getElementById("pbar").style.width = pct + "%";
       document.getElementById("kEst").textContent = coverage ? coverage.established : 0;
-      document.getElementById("kDoc").textContent = "—";
-      document.getElementById("kDis").textContent = "—";
+      document.getElementById("kDoc").textContent = docExtractedCount != null ? docExtractedCount : "—";
+      document.getElementById("kDis").textContent = "0";
       document.getElementById("kNeed").textContent = coverage ? coverage.still_needed : "—";
       document.getElementById("fEU").textContent   = coverage ? Math.round(pct) + "%" : "—";
       document.getElementById("fISO").textContent  = "—";
@@ -970,6 +982,14 @@ function initChat(){
 
     function renderOptions(q){
       if(!q.options || !q.options.length) return "";
+      if(q.answer_type === "multi_select"){
+        return '<div class="opts opts-multi">' + q.options.map(function(o, i){
+          return '<label class="opt opt-check" data-i="' + i + '"><input type="checkbox" data-i="' + i + '" />' +
+                 '<span>' + esc(o.label) + '</span>' +
+                 (o.negates ? '<span class="att">ATTESTATION</span>' : "") + '</label>';
+        }).join("") +
+        '<button type="button" class="opt-submit">Submit selection →</button></div>';
+      }
       return '<div class="opts">' + q.options.map(function(o, i){
         return '<div class="opt" data-i="' + i + '"><span class="k">' + "ABCDEFGH".charAt(i) + '</span>' +
                '<span>' + esc(o.label) + '</span>' +
@@ -1000,16 +1020,30 @@ function initChat(){
     }
 
     async function answerReal(q, option, freetextValue){
-      var label = option ? option.label : freetextValue;
+      // `option` is a single option object for single_select/boolean questions,
+      // or an ARRAY of option objects for multi_select -- ccae/core/profile.py's
+      // MULTI_ENUM validator requires a real list, so a multi_select answer's
+      // `value` is built as an array here, never a bare scalar.
+      var isMulti = Array.isArray(option);
+      var label = isMulti
+        ? (option.length ? option.map(function(o){ return o.label; }).join(", ") : freetextValue)
+        : (option ? option.label : freetextValue);
       me(esc(label));
       clearLiveOptions();
       typing();
       try{
+        // Options here are normally scalar strings, but a "none of the above" style
+        // option can itself carry an array value (e.g. ["none"]) -- concat (not map)
+        // flattens either shape into one real flat list, never a nested array.
+        var value = isMulti
+          ? option.reduce(function(acc, o){ return acc.concat(o.value); }, [])
+          : (option ? option.value : null);
+        var negates = isMulti ? option.some(function(o){ return o.negates; }) : (option ? !!option.negates : false);
         var res = await submitAnswers(eid, [{
           qid: q.qid,
           field_path: q.field_path,
-          value: option ? option.value : null,
-          negates: option ? !!option.negates : false,
+          value: value,
+          negates: negates,
           freetext: freetextValue || null,
         }]);
         untype();
@@ -1024,7 +1058,46 @@ function initChat(){
       }
     }
 
+    // An array-valued option (e.g. "None of the above" -> ["none"]) is mutually
+    // exclusive with every other option in the same multi_select question --
+    // checking it clears the rest, and checking anything else clears it. Without
+    // this a real submission could ask to record ["none","interacts_with_humans"]
+    // at once, which is not a coherent attestation.
+    S.addEventListener("change", function(e){
+      var cb = e.target.closest('.opts-multi input[type="checkbox"]');
+      if(!cb) return;
+      var q = qqueue[qi];
+      if(!q || !q.options) return;
+      var container = cb.closest(".opts-multi");
+      var boxes = Array.prototype.slice.call(container.querySelectorAll('input[type="checkbox"]'));
+      var thisOpt = q.options[parseInt(cb.getAttribute("data-i"), 10)];
+      var thisIsNone = thisOpt && Array.isArray(thisOpt.value);
+      if(cb.checked){
+        boxes.forEach(function(other){
+          if(other === cb) return;
+          var otherOpt = q.options[parseInt(other.getAttribute("data-i"), 10)];
+          var otherIsNone = otherOpt && Array.isArray(otherOpt.value);
+          if(thisIsNone || otherIsNone) other.checked = false;
+        });
+      }
+    });
+
     S.addEventListener("click", function(e){
+      var submitBtn = e.target.closest(".opt-submit");
+      if(submitBtn){
+        var q1 = qqueue[qi];
+        if(!q1 || !q1.options) return;
+        var container = submitBtn.closest(".opts-multi");
+        var checked = Array.prototype.slice.call(container.querySelectorAll('input[type="checkbox"]:checked'));
+        var selected = checked.map(function(cb){
+          return q1.options[parseInt(cb.getAttribute("data-i"), 10)];
+        }).filter(Boolean);
+        answerReal(q1, selected, null);
+        return;
+      }
+      // Checkbox rows toggle only -- the actual submit happens on .opt-submit,
+      // since a multi_select question can hold several true selections at once.
+      if(e.target.closest(".opt-check")) return;
       var o = e.target.closest(".opt");
       if(!o) return;
       var q = qqueue[qi];
@@ -1068,6 +1141,7 @@ function initChat(){
       typing();
       try{
         var rpt = await getReport(eid);
+        try{ localStorage.setItem('tahara-last-engagement', eid); }catch(e){}
         untype();
         var s = rpt.summary;
         bot(
@@ -1081,7 +1155,10 @@ function initChat(){
             s.needs_review + ' needs review. ' +
             'Findings on record: ' + (rpt.findings ? rpt.findings.total : 0) + '.' +
           '</div>' +
-          '<div style="margin-top:18px"><a class="btn-p" href="/gap"><span>View gap assessment</span>' +
+          // The eid also rides in the URL, not only localStorage -- storage can fail to
+          // carry over (a fresh tab, a private window, storage getting cleared between
+          // visits), and /gap and /report both check the URL first for exactly this reason.
+          '<div style="margin-top:18px"><a class="btn-p" href="/gap?eid=' + encodeURIComponent(eid) + '"><span>View gap assessment</span>' +
           '<svg viewBox="0 0 14 14" fill="none"><path d="M3 7h8M8 3.5 11.5 7 8 10.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>'
         );
       }catch(err){
@@ -1093,6 +1170,33 @@ function initChat(){
     var realFileInput = null;
 
     function boot(){
+      // Resume, not restart: if a real engagement from this browser already exists
+      // (set the moment handleUpload creates one, not only at finish()), pick up
+      // real remaining questions for it instead of re-uploading and re-running the
+      // whole extraction pass. A reload or a JS bundle update mid-assessment must
+      // never throw away work the backend already did.
+      var savedEid = null;
+      try{ savedEid = localStorage.getItem('tahara-last-engagement'); }catch(e){}
+      if(savedEid){
+        eid = savedEid;
+        bot('Resuming this real assessment (engagement ' + esc(eid) + ') instead of starting over.');
+        // The extraction result (and its real fields_extracted count) is kept
+        // server-side indefinitely once done -- see ccae/api/server.py's
+        // DOCUMENT_PROCESSING, never cleared the way QUESTIONS_PROCESSING is -- so
+        // a resume can recover the real "From documents" sidebar figure the same
+        // way handleUpload does, instead of leaving it blank after a reload.
+        getDocumentsStatus(eid).then(function(status){
+          if(status.status === "done" && status.result){
+            coverage = status.result.coverage;
+            docExtractedCount = status.result.fields_extracted != null
+              ? status.result.fields_extracted
+              : (status.result.extractions || []).length;
+            upd();
+          }
+        }).catch(function(){ /* non-fatal: sidebar just stays at its current values */ });
+        loadMoreQuestions();
+        return;
+      }
       bot(
         'I\'m the assurance auditor for this assessment. Upload what you have and I\'ll read it, extract only the facts this framework needs, then ask about what your documents don\'t say.' +
         '<div class="drop" id="dropZ">' +
@@ -1132,6 +1236,11 @@ function initChat(){
         if(!eid){
           var eng = await openEngagement();
           eid = eng.engagement_id;
+          // Persisted immediately, not only at finish() -- so a reload mid-assessment
+          // (extraction running, or answering questions) can resume the SAME real
+          // engagement instead of silently starting a new one and re-running the
+          // whole extraction pass from scratch.
+          try{ localStorage.setItem('tahara-last-engagement', eid); }catch(e){}
         }
         // POST .../documents now returns immediately -- the real extraction (real
         // per-field local-model calls, genuinely minutes long) runs in the backend's
@@ -1153,6 +1262,7 @@ function initChat(){
 
         var result = status.result;
         coverage = result.coverage;
+        docExtractedCount = result.fields_extracted != null ? result.fields_extracted : (result.extractions || []).length;
         upd();
         var lines = (result.extractions || []).map(function(x){
           return '<div class="ex"><span class="f keep">' + esc(x.field) + '</span>' +

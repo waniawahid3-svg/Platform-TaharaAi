@@ -1683,49 +1683,13 @@ function initReport(){
       }
     };
 
-    var FINDS = [
-      { code:"ISO 42001 · A.4.2", sev:"maj", stat:"open", due:14, own:{en:"Platform team", ar:"فريق المنصة"},
-        t:{en:"Documented access control is not operating: 3 non-engineering principals on s3://prod-models.",
-           ar:"ضبط الوصول الموثق غير مطبق: 3 جهات من خارج الهندسة على s3://prod-models."} },
-      { code:"ISO 42001 · CL. 9.2", sev:"maj", stat:"open", due:30, own:{en:"GRC office", ar:"مكتب الحوكمة"},
-        t:{en:"No internal audit records in the last 12 months.", ar:"لا سجلات تدقيق داخلي خلال الأشهر الاثني عشر الماضية."} },
-      { code:"EU AI ACT · ART. 6(3)", sev:"det", stat:"final", due:0, own:{en:"Legal counsel", ar:"المستشار القانوني"},
-        t:{en:"System is high-risk: Annex III employment with profiling; the derogation is unavailable.",
-           ar:"النظام عالي المخاطر: توظيف ضمن الملحق الثالث مع تنميط، والاستثناء غير متاح."} },
-      { code:"EU AI ACT · ART. 19", sev:"min", stat:"prog", due:7, own:{en:"Platform team", ar:"فريق المنصة"},
-        t:{en:"Log retention is 30 days on s3://prod-logs, below the six-month floor.",
-           ar:"مدة الاحتفاظ بالسجلات 30 يوما على s3://prod-logs، دون الحد الأدنى بستة أشهر."} },
-      { code:"ISO 42001 · CL. 7.3", sev:"min", stat:"prog", due:30, own:{en:"GRC office", ar:"مكتب الحوكمة"},
-        t:{en:"Control-owner awareness does not match observed system state.", ar:"وعي مالك الضابط لا يطابق حالة النظام المرصودة."} },
-      { code:"EU AI ACT · ART. 10(2)(f)", sev:"min", stat:"open", due:45, own:{en:"ML engineering", ar:"هندسة التعلم الآلي"},
-        t:{en:"No documented bias examination of the training data.", ar:"لا فحص موثقا للتحيز في بيانات التدريب."} },
-      { code:"ISO 23894 · CL. 6.1", sev:"min", stat:"open", due:45, own:{en:"GRC office", ar:"مكتب الحوكمة"},
-        t:{en:"Risk register review cadence is not evidenced across the lifecycle.", ar:"لا دليل على وتيرة مراجعة سجل المخاطر عبر دورة الحياة."} },
-      { code:"EU AI ACT · ART. 72", sev:"min", stat:"open", due:60, own:{en:"GRC office", ar:"مكتب الحوكمة"},
-        t:{en:"No post-market monitoring plan proportionate to a high-risk system.", ar:"لا خطة مراقبة بعد الطرح تتناسب مع نظام عالي المخاطر."} },
-      { code:"ISO 42001 · A.10.2", sev:"min", stat:"open", due:60, own:{en:"Legal counsel", ar:"المستشار القانوني"},
-        t:{en:"Supplier agreements carry no AI-specific obligations or audit rights.",
-           ar:"اتفاقيات المورّدين لا تتضمن التزامات خاصة بالذكاء الاصطناعي أو حقوق تدقيق."} },
-      { code:"EU AI ACT · ART. 27", sev:"min", stat:"open", due:45, own:{en:"Legal counsel", ar:"المستشار القانوني"},
-        t:{en:"No fundamental rights impact assessment recorded before first use.",
-           ar:"لا تقييم أثر على الحقوق الأساسية مسجلا قبل أول استخدام."} },
-      { code:"ISO 42001 · CL. 7.2", sev:"obs", stat:"open", due:30, own:{en:"People ops", ar:"شؤون الموظفين"},
-        t:{en:"Operator competence is not evidenced; no training records for recruiters.",
-           ar:"كفاءة المشغلين غير مدعومة بأدلة؛ لا سجلات تدريب للمسؤولين عن التوظيف."} }
-    ];
-
-    var REM = [
-      { eff:"s", unlocks:8,  t:{en:"Extend the s3://prod-logs lifecycle rule to at least six months.",
-                                ar:"مدّد قاعدة دورة الحياة على s3://prod-logs إلى ستة أشهر على الأقل."} },
-      { eff:"s", unlocks:11, t:{en:"Revoke or re-scope the 3 non-engineering principals on prod-models.",
-                                ar:"ألغِ أو أعد تحديد صلاحيات الجهات الثلاث من خارج الهندسة على prod-models."} },
-      { eff:"m", unlocks:9,  t:{en:"Stand up the internal audit cycle and run the first audit.",
-                                ar:"فعّل دورة التدقيق الداخلي ونفّذ التدقيق الأول."} },
-      { eff:"m", unlocks:21, t:{en:"Run and document the Article 10 bias examination.",
-                                ar:"نفّذ فحص التحيز بموجب المادة 10 ووثّقه."} },
-      { eff:"m", unlocks:11, t:{en:"Complete the fundamental rights impact assessment before the next deployment.",
-                                ar:"أكمل تقييم الأثر على الحقوق الأساسية قبل النشر التالي."} }
-    ];
+    /* real, loaded below from GET /engagements/{id}/report -- never a hardcoded fixture */
+    var FINDS = [];
+    function esc(s){
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+      });
+    }
 
     var lang = "en";
     try{ var sl = localStorage.getItem("tahara-lang"); if(sl === "ar" || sl === "en") lang = sl; }catch(e){}
@@ -1736,27 +1700,28 @@ function initReport(){
       document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
       root.querySelectorAll("[data-i]").forEach(function(el){
         var v = d[el.getAttribute("data-i")];
-        if(typeof v !== "string") return;
-        if(el.getAttribute("data-i") === "p1" || el.getAttribute("data-i") === "p6") el.innerHTML = v;
-        else el.textContent = v;
+        if(typeof v === "string") el.textContent = v;
       });
       root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
         b.classList.toggle("on", b.getAttribute("data-lang") === lang);
       });
-      document.querySelector("#rpFinds tbody").innerHTML = FINDS.map(function(f){
+      document.querySelector("#rpFinds tbody").innerHTML = FINDS.length ? FINDS.map(function(f){
         return '<tr>' +
-          '<td class="mono keep">' + f.code + '</td>' +
-          '<td><span class="pill ' + f.sev + '">' + d.sev[f.sev] + '</span></td>' +
-          '<td>' + f.t[lang] + '</td>' +
-          '<td class="hidecol">' + f.own[lang] + '</td>' +
-          '<td class="num hidecol keep">' + (f.due ? d.days(f.due) : d.dash) + '</td>' +
-          '<td><span class="pill ' + f.stat + '">' + d.stat[f.stat] + '</span></td>' +
+          '<td class="mono keep">' + esc(f.control_id || '—') + '</td>' +
+          '<td><span class="pill ' + f.severity + '">' + f.severity.toUpperCase() + '</span></td>' +
+          '<td>' + esc(f.description) + '</td>' +
+          '<td class="hidecol">' + esc(f.source) + '</td>' +
+          '<td class="num hidecol keep">' + esc(f.created_at ? f.created_at.slice(0,10) : '—') + '</td>' +
+          '<td><span class="pill ' + f.status + '">' + esc(f.status.replace('_',' ').toUpperCase()) + '</span></td>' +
         '</tr>';
-      }).join("");
-      document.getElementById("rpRem").innerHTML = REM.map(function(r){
-        return '<li><span>' + r.t[lang] +
-          '<span class="meta keep">' + (r.eff === "s" ? d.effS : d.effM) + ' · ' + d.unlocks(r.unlocks) + '</span></span></li>';
-      }).join("");
+      }).join("") : '<tr><td colspan="6" style="opacity:.6;text-align:center">No findings on this real engagement’s register.</td></tr>';
+      var order = { critical:0, major:1, minor:2 };
+      var open = FINDS.filter(function(f){ return f.status === "open"; })
+                       .sort(function(a,b){ return (order[a.severity]||9) - (order[b.severity]||9); });
+      document.getElementById("rpRem").innerHTML = open.length ? open.slice(0,6).map(function(f){
+        return '<li><span>' + esc(f.description) +
+          '<span class="meta keep">' + f.severity.toUpperCase() + '</span></span></li>';
+      }).join("") : '<li style="opacity:.6;list-style:none">No open findings to remediate.</li>';
       try{ localStorage.setItem("tahara-lang", lang); }catch(e){}
     }
     root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
@@ -1778,6 +1743,79 @@ function initReport(){
       now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0") + "-" + String(now.getDate()).padStart(2,"0");
 
     render();
+
+    /* ---------- real data load: URL ?eid= first, localStorage second -- see
+       initGap's identical loadReal() for why storage alone isn't reliable enough
+       on its own. ---------- */
+    (async function loadReal(){
+      var eid = null;
+      try{ eid = new URLSearchParams(location.search).get("eid"); }catch(e){}
+      if (!eid){ try{ eid = localStorage.getItem("tahara-last-engagement"); }catch(e){} }
+      else { try{ localStorage.setItem("tahara-last-engagement", eid); }catch(e){} }
+      if (!eid){
+        document.getElementById("rpSubB").textContent = "NO REAL ENGAGEMENT YET";
+        return;
+      }
+      try{
+        var rpt = await getReport(eid);
+        var s = rpt.summary, pc = s.profile_coverage;
+        FINDS = ((rpt.findings && rpt.findings.items) || []).map(function(f){
+          return { severity: f.severity, description: f.description, control_id: f.control_id, source: f.source, status: f.status, created_at: f.created_at };
+        });
+
+        document.getElementById("rpRef").textContent = rpt.report_id;
+        document.getElementById("rpSubA").textContent = rpt.pinned.framework_name.toUpperCase() + " · " + pc.framework_fields_total + " FIELDS";
+        document.getElementById("rpSubB").textContent = "REPORT STATUS: " + rpt.status;
+
+        var sevCounts = { critical:0, major:0, minor:0 };
+        FINDS.forEach(function(f){ if (sevCounts[f.severity] != null) sevCounts[f.severity]++; });
+        var pct = pc.percent_complete;
+        document.getElementById("rpP1").innerHTML =
+          "The assessed system is <b>" + esc(rpt.subject.system || "unspecified") + "</b>, operated by <b>" + esc(rpt.subject.organisation || "an unspecified organisation") + "</b>. Of the " + pc.framework_fields_total +
+          " fields " + esc(rpt.pinned.framework_name) + " needs, <b>" + pc.established + " are established and evidenced</b>, a readiness of " + pct +
+          " percent. <b>" + rpt.findings.total + " finding" + (rpt.findings.total === 1 ? "" : "s") + "</b> " + (rpt.findings.total === 1 ? "sits" : "sit") + " on the register" +
+          (sevCounts.critical || sevCounts.major ? ", of which <b>" + (sevCounts.critical + sevCounts.major) + " are critical or major</b>" : ", none of them critical or major") +
+          ". This is a real report from GET /engagements/" + esc(eid) + "/report, generated " + esc((rpt.generated_at || "").slice(0,10)) + ".";
+
+        document.getElementById("rpG1").innerHTML = pct + "<small>%</small>";
+        document.getElementById("rpG1s").textContent = "of " + esc(rpt.pinned.framework_name) + "'s fields evidenced";
+        document.getElementById("rpG2").innerHTML = pc.established + '<small id="rpG2d"> / ' + pc.framework_fields_total + '</small>';
+        document.getElementById("rpG2s").textContent = pc.still_needed + " still needed, " + pc.pruned_as_irrelevant + " pruned as not relevant";
+        document.getElementById("rpG3").textContent = rpt.findings.total;
+        document.getElementById("rpG3s").textContent = (sevCounts.critical + sevCounts.major) + " critical/major";
+        document.getElementById("rpG4").textContent = pc.still_needed;
+        document.getElementById("rpG4s").textContent = pc.still_needed ? "before the report can go FINAL" : "profile is complete";
+
+        document.getElementById("rpCov").innerHTML =
+          '<tr><td class="keep">' + esc(rpt.pinned.framework_name) + '</td>' +
+          '<td class="num keep">' + pc.established + ' / ' + pc.framework_fields_total + '</td>' +
+          '<td><div class="covbar"><i style="width:' + pct + '%"></i></div></td>' +
+          '<td class="num keep">' + pct + '%</td></tr>';
+
+        var facts = Object.values(rpt.profile_facts || {});
+        var provCounts = { document: 0, discovery: 0, interview: 0 };
+        facts.forEach(function(f){
+          if (f.source_type === "document") provCounts.document++;
+          else if (f.source_type === "discovery" || f.source_type === "observed") provCounts.discovery++;
+          else provCounts.interview++;
+        });
+        document.getElementById("rpP6").innerHTML =
+          "Of the " + pc.framework_fields_total + " fields, <b>" + provCounts.document + "</b> were established from uploaded documents, <b>" + provCounts.discovery +
+          "</b> were observed by the discovery collector, and <b>" + provCounts.interview + "</b> were attested in the interview. <b>" + pc.still_needed +
+          "</b> still need an answer. <b>" + pc.pruned_as_irrelevant + "</b> were pruned because no answer to them could change the outcome for this system.";
+
+        var gapLink = document.getElementById("rpGapLink");
+        if (gapLink) gapLink.href = "/gap?eid=" + encodeURIComponent(eid);
+
+        document.getElementById("rpStamp1").textContent = "REPORT · " + rpt.status;
+        document.getElementById("rpStamp2").textContent = esc(rpt.subject.organisation || "—") + " · " + esc(rpt.subject.system || "—");
+        document.getElementById("rpStamp3").textContent = "ENGAGEMENT · " + eid;
+
+        render();
+      }catch(err){
+        document.getElementById("rpSubB").textContent = "REAL ERROR: " + err.message;
+      }
+    })();
 
   } finally {
     window.setTimeout = _origST;

@@ -38,7 +38,7 @@ const MARKUP = `
   </header>
 
   <div class="bar">
-    <a class="crumb" href="/gap">
+    <a class="crumb" href="/gap" id="rpGapLink">
       <svg viewBox="0 0 12 12" fill="none"><path d="M7.5 2.5 4 6l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span data-i="crumb">BACK TO THE DASHBOARD</span>
     </a>
@@ -58,8 +58,8 @@ const MARKUP = `
           <span><b>Tahara AI</b><i>CONTINUOUS ASSURANCE</i></span>
         </a>
         <div class="ref">
-          <div><span data-i="refL">REFERENCE</span> · <b class="keep">TAH-GA-2026-0143</b></div>
-          <div><span data-i="dateL">GENERATED</span> · <b class="keep" id="rpDate">2026-08-30</b></div>
+          <div><span data-i="refL">REFERENCE</span> · <b class="keep" id="rpRef">—</b></div>
+          <div><span data-i="dateL">GENERATED</span> · <b class="keep" id="rpDate">—</b></div>
           <div><span class="conf" data-i="conf">CONFIDENTIAL · INTERNAL</span></div>
         </div>
       </div>
@@ -67,17 +67,17 @@ const MARKUP = `
       <div class="rule"></div>
 
       <h1 data-i="h1">Gap assessment report</h1>
-      <div class="sub"><span data-i="subA">MASTER SCOPE · EU AI ACT · ISO/IEC 42001 · ISO/IEC 23894 · NIST AI RMF · 187 REQUIREMENTS</span> · <b data-i="subB">COLLECTOR LIVE</b></div>
+      <div class="sub"><span id="rpSubA">NO REAL ENGAGEMENT YET</span> · <b id="rpSubB">&hellip;</b></div>
 
       <h2><span class="no">01</span><span data-i="s1">Executive summary</span></h2>
-      <p class="body" data-i="p1">The assessed system is a cloud-delivered employment screening service that profiles natural persons, which classifies it as high-risk under Annex III of the EU AI Act with the Article 6(3) derogation unavailable. Of the 187 requirements in the master scope, <b>168 are established and evidenced</b>, a readiness of 90 percent. <b>Eleven findings</b> sit on the register, of which <b>two are major nonconformities</b> that block ISO/IEC 42001 certification until closed: access control that is documented but not operating, and the absence of internal audit records. Both were triangulated against live system state observed by the discovery collector, not self-reported.</p>
+      <p class="body" id="rpP1">Run a real assessment from <a href="/assessment">/assessment</a> first — this report shows its real data, it does not fabricate one.</p>
 
       <h2><span class="no">02</span><span data-i="s2">At a glance</span></h2>
       <div class="glance">
-        <div class="gl"><div class="l" data-i="g1l">READINESS</div><div class="n keep">90<small>%</small></div><div class="s" data-i="g1s">of the master scope evidenced</div></div>
-        <div class="gl"><div class="l" data-i="g2l">REQUIREMENTS</div><div class="n keep">168<small> / 187</small></div><div class="s" data-i="g2s">mapped, overlap counted once</div></div>
-        <div class="gl warn"><div class="l" data-i="g3l">FINDINGS</div><div class="n keep">11</div><div class="s" data-i="g3s">2 major nonconformities</div></div>
-        <div class="gl"><div class="l" data-i="g4l">DEFERRED</div><div class="n keep">19</div><div class="s" data-i="g4s">cannot change the outcome</div></div>
+        <div class="gl"><div class="l" data-i="g1l">READINESS</div><div class="n keep" id="rpG1">0<small>%</small></div><div class="s" id="rpG1s">of this framework's fields evidenced</div></div>
+        <div class="gl"><div class="l" data-i="g2l">REQUIREMENTS</div><div class="n keep" id="rpG2">0<small id="rpG2d"> / 0</small></div><div class="s" id="rpG2s">fields established</div></div>
+        <div class="gl warn"><div class="l" data-i="g3l">FINDINGS</div><div class="n keep" id="rpG3">0</div><div class="s" id="rpG3s">real, from this engagement's report</div></div>
+        <div class="gl"><div class="l" id="rpG4l">FIELDS STILL NEEDED</div><div class="n keep" id="rpG4">0</div><div class="s" id="rpG4s">before the report can go FINAL</div></div>
       </div>
 
       <h2><span class="no">03</span><span data-i="s3">Framework coverage</span></h2>
@@ -85,19 +85,14 @@ const MARKUP = `
         <thead><tr>
           <th data-i="t1a">FRAMEWORK</th><th data-i="t1b">SATISFIED</th><th data-i="t1c">COVERAGE</th><th style="width:54px"></th>
         </tr></thead>
-        <tbody>
-          <tr><td class="keep">EU AI Act</td><td class="num keep">76 / 84</td><td><div class="covbar"><i style="width:90%"></i></div></td><td class="num keep">90%</td></tr>
-          <tr><td class="keep">ISO/IEC 42001</td><td class="num keep">56 / 62</td><td><div class="covbar"><i style="width:90%"></i></div></td><td class="num keep">90%</td></tr>
-          <tr><td class="keep">ISO/IEC 23894</td><td class="num keep">13 / 18</td><td><div class="covbar"><i style="width:72%"></i></div></td><td class="num keep">72%</td></tr>
-          <tr><td class="keep">NIST AI RMF</td><td class="num keep">19 / 23</td><td><div class="covbar"><i style="width:81%"></i></div></td><td class="num keep">81%</td></tr>
-        </tbody>
+        <tbody id="rpCov"></tbody>
       </table>
 
       <h2><span class="no">04</span><span data-i="s4">Findings register</span></h2>
       <table id="rpFinds">
         <thead><tr>
           <th data-i="t2a">CLAUSE</th><th data-i="t2b">SEVERITY</th><th data-i="t2c">FINDING</th>
-          <th class="hidecol" data-i="t2d">OWNER</th><th class="hidecol" data-i="t2e">DUE</th><th data-i="t2f">STATUS</th>
+          <th class="hidecol">SOURCE</th><th class="hidecol">RAISED</th><th data-i="t2f">STATUS</th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -106,7 +101,7 @@ const MARKUP = `
       <ol class="rem" id="rpRem"></ol>
 
       <h2><span class="no">06</span><span data-i="s6">Method and evidence</span></h2>
-      <p class="body" data-i="p6">Of the 187 requirements, <b>23</b> were established from uploaded documents with citations to source, <b>14</b> were observed directly by the discovery collector against live infrastructure, and <b>131</b> were attested in a structured fifteen-question interview. Nineteen requirements were deferred because no answer to them can change the findings above. Findings tied to system state remain under continuous observation: they close when the collector observes remediation, not when it is reported.</p>
+      <p class="body" id="rpP6">&hellip;</p>
 
       <div class="sign">
         <div class="who">
@@ -114,9 +109,9 @@ const MARKUP = `
           <span data-i="sgS">Master framework assessment · interview and discovery triangulation</span>
         </div>
         <div class="stamp keep">
-          <span data-i="stamp1">COLLECTOR · LIVE</span><br>
-          <span class="keep">s3://prod-models · s3://prod-logs</span><br>
-          <span data-i="stamp2">PROBES RUN · 1,318</span>
+          <span id="rpStamp1">&hellip;</span><br>
+          <span class="keep" id="rpStamp2">&hellip;</span><br>
+          <span id="rpStamp3">&hellip;</span>
         </div>
       </div>
 

@@ -4,6 +4,8 @@
    HTML build. Everything runs inside run(), so it executes on mount when the
    markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
+import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport } from "@/lib/govApi";
+
 export function run(which){
 
 
@@ -814,11 +816,18 @@ function initChat(){
       try{ localStorage.setItem("tahara-theme", n); }catch(e){}
     });
 
-    /* ═══ the interview ═══ */
+    /* ═══ the interview -- real backend, no scripted content, no fixed timers ═══
+       Wired to ccae-eu-ai-act's real Governance API (see API-CONTRACT.md,
+       section 2). Every pause below is the actual wait for a real fetch to
+       resolve, not a setTimeout standing in for one. */
     var S = document.getElementById("stream");
-    var step = 0, est = 0, doc = 0, dis = 0, finds = 0;
-    var TOTAL = 187;
     var AV = '<span class="av"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 20 7.4 12 11.8 4 7.4 12 3Z" fill="currentColor"/><path d="M12 10.4 20 15l-8 4.6L4 15l8-4.6Z" fill="currentColor" opacity=".55"/></svg></span>';
+
+    var eid = null;          // real engagement_id once POST /engagements returns
+    var coverage = null;     // real coverage object, refreshed after every real call
+    var qqueue = [];         // current real batch from GET /questions
+    var qi = 0;              // index into qqueue
+    var askedCount = 0;      // how many real questions have actually been shown -- not a fixed 15
 
     /* the stream follows new content automatically, so each question and its
      options land in view without the reader having to scroll */
@@ -838,11 +847,11 @@ function initChat(){
   }
   function scrollEnd(){ stick = true; pin(); }
   new MutationObserver(pin).observe(S, { childList:true, subtree:true, characterData:true });
-    function bot(html, cls){
+    function bot(html){
       var d = document.createElement("div");
       d.className = "msg";
       d.innerHTML = '<div class="who">' + AV + '<span>' + T[lang].auditor + '</span></div>' +
-                    '<div class="bubble ' + (cls || "") + '">' + html + '</div>';
+                    '<div class="bubble">' + html + '</div>';
       S.appendChild(d); scrollEnd(); return d;
     }
     function me(txt){
@@ -851,6 +860,8 @@ function initChat(){
       d.innerHTML = '<div class="who"><span>' + T[lang].you + '</span></div><div class="bubble">' + txt + '</div>';
       S.appendChild(d); scrollEnd();
     }
+    /* the "AI thinking" state -- shown for exactly as long as the real fetch
+       it wraps actually takes, removed only when that call resolves */
     function typing(){
       var d = document.createElement("div");
       d.className = "msg"; d.id = "typ";
@@ -859,394 +870,269 @@ function initChat(){
       S.appendChild(d); scrollEnd();
     }
     function untype(){ var t = document.getElementById("typ"); if(t) t.remove(); }
-    var _t = [];
-    function after(fn, ms){ var id = setTimeout(fn, RM ? 0 : ms); _t.push(id); return id; }
-    function clearTimers(){ _t.forEach(clearTimeout); _t = []; }
+    function clearTimers(){ /* no scripted timers remain to clear */ }
 
+    function esc(s){
+      return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){
+        return { "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;" }[c];
+      });
+    }
+    function fmtVal(v){ try{ return esc(JSON.stringify(v)); }catch(e){ return esc(String(v)); } }
+
+    /* Sidebar reflects only what the real coverage() object actually reports.
+       "From documents" / "From discovery" have no real split in that object
+       (established only distinguishes USER_CONFIRMED/EXPLICITLY_NEGATED, not
+       source), and only EU AI Act is a real, wired framework here -- so those
+       fields show an honest em dash instead of an invented number. */
     function upd(){
-      var p = Math.round(est / TOTAL * 100);
-      document.getElementById("pct").textContent = p;
-      document.getElementById("pbar").style.width = p + "%";
-      document.getElementById("kEst").textContent = est;
-      document.getElementById("kDoc").textContent = doc;
-      document.getElementById("kDis").textContent = dis;
-      document.getElementById("kNeed").textContent = TOTAL - est;
-      var fw = function(v){ return v > 0 ? Math.min(99, Math.round(v / TOTAL * 100)) + "%" : "—"; };
-      document.getElementById("fEU").textContent   = fw(est);
-      document.getElementById("fISO").textContent  = fw(est);
-      document.getElementById("f238").textContent  = fw(est * 0.8);
-      document.getElementById("fNIST").textContent = fw(est * 0.9);
-    }
-    function finding(code, txt){
-      finds++;
-      var f = document.getElementById("findings");
-      if(finds === 1) f.innerHTML = "";
-      f.insertAdjacentHTML("afterbegin",
-        '<div class="find"><div class="c keep">' + code + '</div><div class="t keep">' + txt + '</div></div>');
-      document.getElementById("fnCount").textContent = finds;
+      var pct = coverage ? coverage.percent_complete : 0;
+      document.getElementById("pct").textContent = Math.round(pct);
+      document.getElementById("pbar").style.width = pct + "%";
+      document.getElementById("kEst").textContent = coverage ? coverage.established : 0;
+      document.getElementById("kDoc").textContent = "—";
+      document.getElementById("kDis").textContent = "—";
+      document.getElementById("kNeed").textContent = coverage ? coverage.still_needed : "—";
+      document.getElementById("fEU").textContent   = coverage ? Math.round(pct) + "%" : "—";
+      document.getElementById("fISO").textContent  = "—";
+      document.getElementById("f238").textContent  = "—";
+      document.getElementById("fNIST").textContent = "—";
     }
 
-    function L(o){ return (o && o[lang]) || (o && o.en) || o; }
-
-    var TX = {
-      en:{
-        intro:'I\'m the assurance auditor for your <b>master framework</b> assessment: EU AI Act, ISO/IEC 42001, ISO/IEC 23894 and NIST AI RMF, scoped to <b>187 requirements</b> with the overlap removed.',
-        how:'<b>How this works:</b> start by giving me whatever you already have. I\'ll read it and extract only the facts these frameworks actually need, then I\'ll ask about what your documents don\'t say.',
-        dropM:'Drop your documents, or click to select',
-        dropS:'ARCHITECTURE · MODEL CARDS · POLICIES · DPA · RISK REGISTER',
-        uploaded:'Uploaded 3 documents',
-        read:'Read all three, <b>147 chunks indexed</b>. I pulled 23 facts.',
-        exH:'EXTRACTED · CITED TO SOURCE',
-        notRelied:'<b>Nothing here is relied on yet.</b> These were read by a machine, not confirmed by you. Anything that would <i>excuse</i> you from an obligation, I\'ll put to you directly.',
-        whatsLeft:'<b>What\'s left:</b> your documents answered 23 of 187. I have <b>15 questions</b> that your documents don\'t answer, and I\'ll stop as soon as the remainder can\'t change the outcome.',
-        of:' / 15',
-        finish:'I have enough to generate your gap assessment. There are <b>19 requirements</b> left, and none of them can change the findings we\'ve already established, so I\'m not going to ask you about them.',
-        landed:function(e,f){ return '<b>Where you landed:</b> ' + e + ' of 187 requirements mapped, ' + f + ' findings on the register, two of them major nonconformities. The collector keeps watching the ones tied to system state.'; },
-        viewGap:'View gap assessment',
-        noted:'Noted, I\'ve added that to the profile. Continue with the options above.',
-        triH:'▲ TRIANGULATION · THREE SOURCES, THREE ANSWERS',
-        triH2:'▲ TRIANGULATION · RETENTION POLICY',
-        claim:'CLAIM', document:'DOCUMENT', reality:'REALITY', observed:'OBSERVED', required:'REQUIRED'
-      },
-      ar:{
-        intro:'أنا مدقق الضمان لتقييم <b>الإطار الرئيسي</b> الخاص بك: قانون الذكاء الاصطناعي الأوروبي، وآيزو 42001، وآيزو 23894، وإطار نيست، ضمن نطاق <b>187 متطلبا</b> بعد إزالة التداخل.',
-        how:'<b>كيف تسير العملية:</b> ابدأ بإعطائي ما لديك بالفعل. سأقرؤه وأستخرج منه الحقائق التي تحتاجها هذه الأُطر فقط، ثم أسألك عما لا تذكره مستنداتك.',
-        dropM:'أفلت مستنداتك هنا، أو انقر للاختيار',
-        dropS:'البنية · بطاقات النماذج · السياسات · اتفاقية معالجة البيانات · سجل المخاطر',
-        uploaded:'تم رفع 3 مستندات',
-        read:'قرأت الثلاثة جميعا، <b>تمت فهرسة 147 مقطعا</b>. استخرجت 23 حقيقة.',
-        exH:'مستخرجة · موثقة إلى المصدر',
-        notRelied:'<b>لا شيء هنا معتمد بعد.</b> قرأتها آلة، ولم تؤكدها أنت. وكل ما قد <i>يعفيك</i> من التزام سأطرحه عليك مباشرة.',
-        whatsLeft:'<b>ما تبقى:</b> أجابت مستنداتك عن 23 من 187. لدي <b>15 سؤالا</b> لا تجيب عنها مستنداتك، وسأتوقف حالما يصبح الباقي غير قادر على تغيير النتيجة.',
-        of:' / ١٥',
-        finish:'لدي ما يكفي لإصدار تقييم الفجوات. تبقى <b>19 متطلبا</b>، ولا يمكن لأي منها أن يغير الملاحظات التي أثبتناها، لذلك لن أسألك عنها.',
-        landed:function(e,f){ return '<b>أين وصلت:</b> جرى تغطية ' + e + ' من 187 متطلبا، مع ' + f + ' ملاحظة في السجل، اثنتان منها عدم مطابقة كبرى. ويواصل المُجمّع مراقبة ما يرتبط منها بحالة النظام.'; },
-        viewGap:'عرض تقييم الفجوات',
-        noted:'سُجل، أضفته إلى الملف. تابع مع الخيارات أعلاه.',
-        triH:'▲ تثليث · ثلاثة مصادر، ثلاث إجابات',
-        triH2:'▲ تثليث · سياسة الاحتفاظ',
-        claim:'ما قلته', document:'المستند', reality:'الواقع', observed:'المرصود', required:'المطلوب'
-      }
-    };
-
-    function boot(){
-      var t = TX[lang];
-      bot(t.intro +
-          '<div class="why">' + t.how + '</div>' +
-          '<div class="drop" id="dropZ">' +
-            '<div class="i"><svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4M7.5 8.5 12 4l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>' +
-            '<div class="m">' + t.dropM + '</div>' +
-            '<div class="s">' + t.dropS + '</div>' +
-          '</div>');
-      var dz = document.getElementById("dropZ");
-      if(dz) dz.addEventListener("click", upload);
+    function extractedHint(q){
+      if(!q.extracted) return "";
+      var e = q.extracted;
+      return '<div class="extract"><div class="extract-h">DOCUMENT SUGGESTS &middot; CONFIRM OR CORRECT</div>' +
+        '<div class="ex"><span class="f keep">' + esc(q.field_path) + '</span>' +
+        '<span class="v keep">' + fmtVal(e.value) + '</span>' +
+        '<span class="c keep">' + (e.confidence != null ? e.confidence.toFixed(2) : "—") + '</span>' +
+        '<span class="src keep">' + esc(e.cite || "") + '</span></div></div>';
     }
 
-    function upload(){
-      var t = TX[lang];
-        me(t.uploaded);
-      var d = document.getElementById("dropZ"); if(d) d.remove();
-      var ok = '<span class="ok"><svg viewBox="0 0 16 16" fill="none"><path d="m3.5 8.4 3 3 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
-      document.querySelector(".msg .bubble").insertAdjacentHTML("beforeend",
-        '<div class="files">' +
-        '<div class="file"><span class="n keep">architecture-v4.pdf</span><span class="s keep">2.1 MB</span>' + ok + '</div>' +
-        '<div class="file"><span class="n keep">model-card.md</span><span class="s keep">14 KB</span>' + ok + '</div>' +
-        '<div class="file"><span class="n keep">access-control-policy-v3.docx</span><span class="s keep">88 KB</span>' + ok + '</div>' +
-        '</div>');
-      typing();
-      after(function(){
-        untype();
-        doc = 23; est = 23; upd();
-        bot(t.read +
-          '<div class="extract">' +
-            '<div class="extract-h">' + t.exH + '</div>' +
-            '<div class="ex"><span class="f keep">system.deployment_model</span><span class="v keep">cloud_saas</span><span class="c keep">0.94</span><span class="src keep">arch p.2</span></div>' +
-            '<div class="ex"><span class="f keep">system.annex_iii_domains</span><span class="v keep">employment</span><span class="c keep">0.91</span><span class="src keep">arch p.1</span></div>' +
-            '<div class="ex"><span class="f keep">data.processes_personal_data</span><span class="v keep">true</span><span class="c keep">0.97</span><span class="src keep">arch p.4</span></div>' +
-            '<div class="ex"><span class="f keep">lifecycle.has_automatic_logging</span><span class="v keep">true</span><span class="c keep">0.88</span><span class="src keep">arch p.5</span></div>' +
-            '<div class="ex"><span class="f keep">iso.access_control_policy</span><span class="v keep">documented</span><span class="c keep">0.93</span><span class="src keep">policy p.1</span></div>' +
-          '</div>' +
-          '<div class="why">' + t.notRelied + '</div>' +
-          '<div class="why">' + t.whatsLeft + '</div>');
-        after(ask, 420);
-      }, 1000);
-    }
-
-    /* ═══ 15 questions your documents don't answer, in both languages ═══ */
-    var Q = [
-    { n:"01", tag:"EU AI ACT · ART. 6(3)", est:31,
-      find:{ en:[["EU AI ACT · ART. 6(3)","Derogation unavailable. Profiling is an absolute bar, so the system is high-risk."]],
-             ar:[["EU AI ACT · ART. 6(3)","الاستثناء غير متاح. التنميط مانع مطلق، لذا يُعد النظام عالي المخاطر."]] },
-      en:{ q:'Your model card says the system evaluates candidates\' <b>likely job performance, reliability, and career progression</b>.',
-           why:'<b>Why I\'m asking:</b> this decides whether the Article 6(3) derogation is available to you, and it also drives ISO 42001 Clause 6.1.4. It unblocks <b>34 requirements</b>.',
-           o:["Yes, the system evaluates personal aspects of individuals","No, it makes no evaluation of any individual|ATTESTATION","Only in aggregate, never per-person"],
-           r:'Understood, and that\'s decisive.<div class="why">Under the final subparagraph of <b>Article 6(3)</b>, an Annex III system that profiles natural persons is <b>always high-risk</b>, regardless of how narrow the task is. That engages Articles 9 to 15, 17, 43, 48 and 49, and ISO 42001 Clause 6.1.2 with it.</div>' },
-      ar:{ q:'تذكر بطاقة النموذج أن النظام يقيّم لدى المرشحين <b>الأداء الوظيفي المتوقع والموثوقية والتقدم المهني</b>.',
-           why:'<b>سبب السؤال:</b> هذا يحدد ما إذا كان استثناء المادة 6(3) متاحا لك، كما يقود البند 6.1.4 من آيزو 42001. ويفتح <b>34 متطلبا</b>.',
-           o:["نعم، يقيّم النظام جوانب شخصية لدى الأفراد","لا، لا يجري أي تقييم لأي فرد|إقرار","بشكل تجميعي فقط، وليس لكل شخص"],
-           r:'مفهوم، وهذه إجابة حاسمة.<div class="why">بموجب الفقرة الأخيرة من <b>المادة 6(3)</b>، فإن أي نظام ضمن الملحق الثالث يقوم بتنميط أشخاص طبيعيين يُعد <b>عالي المخاطر دائما</b>، مهما ضاقت مهمته. وهذا يفعّل المواد من 9 إلى 15، و17، و43، و48، و49، ومعها البند 6.1.2 من آيزو 42001.</div>' } },
-
-    { n:"02", tag:"ISO 42001 · A.4.2", est:40, dis:9, probe:"1,247", flag:1,
-      find:{ en:[["ISO 42001 · A.4.2","MAJOR NC. Documented access control is not operating: 3 non-engineering principals."],
-                 ["ISO 42001 · CL. 7.3","Awareness gap. The control owner's understanding does not match system state."]],
-             ar:[["ISO 42001 · A.4.2","عدم مطابقة كبرى. ضبط الوصول الموثق غير مطبق: 3 جهات من خارج الهندسة."],
-                 ["ISO 42001 · CL. 7.3","فجوة وعي. فهم مالك الضابط لا يطابق حالة النظام."]] },
-      en:{ q:'Access control. Your policy, <code>access-control-policy-v3</code>, states least privilege, engineering only.<br><br>Who can actually reach the model artefacts and training data today?',
-           why:'<b>Why I\'m asking:</b> ISO 42001 <b>A.4.2</b> and EU AI Act <b>Art. 15</b>. Unblocks 11 requirements.',
-           o:["Engineering team only, as the policy says","Engineering, plus leadership have read access","I'd have to check with the platform team"],
-           r:function(label){ var t=TX.en; return 'I need to stop you there, and this isn\'t a criticism. It\'s exactly the kind of thing this process exists to surface.<br><br><b>The collector observed your IAM configuration 41 minutes ago.</b> It does not agree with either your policy or your answer.' +
-              '<div class="evid"><div class="evid-h">' + t.triH + '</div>' +
-              '<div class="evid-r"><b>' + t.claim + '</b><span>"' + label + '", you, just now</span></div>' +
-              '<div class="evid-r"><b>' + t.document + '</b><span>Policy v3: least privilege, engineering only</span></div>' +
-              '<div class="evid-r"><b>' + t.reality + '</b><span class="bad">14 principals on <code>s3://prod-models</code>. 3 outside engineering. 1 service account with <code>*</code>.</span></div></div>' +
-              '<div class="why"><b>Two findings, one delta.</b> The control isn\'t operating, a major nonconformity under A.4.2. And the fact that you believed otherwise is itself a <b>Clause 7.3</b> awareness gap.</div>'; } },
-      ar:{ q:'ضبط الوصول. تنص سياستك <code>access-control-policy-v3</code> على مبدأ الحد الأدنى من الامتيازات، وللهندسة فقط.<br><br>من يستطيع فعليا الوصول إلى مكوّنات النموذج وبيانات التدريب اليوم؟',
-           why:'<b>سبب السؤال:</b> البند <b>A.4.2</b> من آيزو 42001 و<b>المادة 15</b> من القانون الأوروبي. ويفتح 11 متطلبا.',
-           o:["فريق الهندسة فقط، كما تنص السياسة","الهندسة، مع صلاحية اطلاع للقيادة","سأحتاج إلى مراجعة فريق المنصة"],
-           r:function(label){ var t=TX.ar; return 'سأتوقف هنا، وهذا ليس انتقادا. بل هو تحديدا ما وُجدت هذه العملية لكشفه.<br><br><b>رصد المُجمّع إعدادات إدارة الهوية لديك قبل 41 دقيقة.</b> وهي لا تتفق مع سياستك ولا مع إجابتك.' +
-              '<div class="evid"><div class="evid-h">' + t.triH + '</div>' +
-              '<div class="evid-r"><b>' + t.claim + '</b><span>«' + label + '»، منك، قبل قليل</span></div>' +
-              '<div class="evid-r"><b>' + t.document + '</b><span>السياسة الإصدار 3: الحد الأدنى من الامتيازات، للهندسة فقط</span></div>' +
-              '<div class="evid-r"><b>' + t.reality + '</b><span class="bad">14 جهة على <code>s3://prod-models</code>. 3 خارج الهندسة. وحساب خدمة واحد بصلاحية <code>*</code>.</span></div></div>' +
-              '<div class="why"><b>ملاحظتان من فارق واحد.</b> الضابط غير مطبق، وهذه عدم مطابقة كبرى بموجب A.4.2. وكونك اعتقدت خلاف ذلك يمثل بذاته فجوة وعي بموجب <b>البند 7.3</b>.</div>'; } } },
-
-    { n:"03", tag:"ISO 42001 · A.4.2", est:47,
-      en:{ q:'Those three principals outside engineering. If they\'re legitimate we amend the policy; if they\'re not, that\'s a remediation item.<br><br>Which is it?',
-           why:'<b>Why I\'m asking:</b> the finding stays open either way, but the treatment differs. One is a document change, the other is a revocation with a due date.',
-           o:["They're legitimate, the policy is stale and needs updating","They should not have access, this needs revoking","I need to escalate this to the platform team"],
-           r:'Logged, with an owner and a due date. It\'ll appear in your <b>risk treatment plan</b>, and the alarm stays open until the collector observes it resolved, not until someone tells me it\'s done.<div class="why">That\'s the difference between a snapshot and continuous assurance.</div>' },
-      ar:{ q:'تلك الجهات الثلاث خارج الهندسة. إن كانت مشروعة نعدّل السياسة، وإن لم تكن فهذا بند معالجة.<br><br>أي الأمرين؟',
-           why:'<b>سبب السؤال:</b> تبقى الملاحظة مفتوحة في الحالتين، لكن المعالجة تختلف. إحداهما تعديل مستند، والأخرى إلغاء صلاحية بموعد محدد.',
-           o:["مشروعة، والسياسة قديمة وتحتاج تحديثا","لا ينبغي أن تملك الوصول، ويجب إلغاؤه","أحتاج إلى تصعيد الأمر إلى فريق المنصة"],
-           r:'سُجل، مع مالك وموعد استحقاق. وسيظهر في <b>خطة معالجة المخاطر</b>، ويبقى التنبيه مفتوحا حتى يرصد المُجمّع أنه عولج فعليا، لا حتى يخبرني أحد بذلك.<div class="why">هذا هو الفرق بين لقطة ثابتة وضمان مستمر.</div>' } },
-
-    { n:"04", tag:"ISO 42001 · CL. 9.2", est:56,
-      find:{ en:[["ISO 42001 · CL. 9.2","MAJOR NC. No internal audit records in the observation window."]],
-             ar:[["ISO 42001 · CL. 9.2","عدم مطابقة كبرى. لا توجد سجلات تدقيق داخلي خلال نافذة الرصد."]] },
-      en:{ q:'<b>ISO 42001 Clause 9.2</b>, internal audit.<br><br>Your AIMS requires a documented internal audit programme. When did you last run one?',
-           why:'<b>Why I\'m asking:</b> this is where most certifications fail. Having a policy is a Clause 7.5 check and takes ten seconds. <b>Showing me the last three times you followed it</b> is the actual audit.',
-           o:["Within the last six months, records available","Over a year ago","We've never run one"],
-           r:'That\'s a <b>major nonconformity</b>, and it\'s the one that would stop a certification audit at the door.<div class="why">Clause 9.2 isn\'t satisfied by having an audit <i>programme</i>. It\'s satisfied by <b>records of audits actually performed</b>, and my collector found none over the last 12 months.</div>' },
-      ar:{ q:'<b>البند 9.2 من آيزو 42001</b>، التدقيق الداخلي.<br><br>يتطلب نظام إدارة الذكاء الاصطناعي لديك برنامج تدقيق داخلي موثقا. متى نفذت آخر تدقيق؟',
-           why:'<b>سبب السؤال:</b> هنا تفشل معظم عمليات الاعتماد. وجود سياسة هو تحقق بموجب البند 7.5 ولا يستغرق عشر ثوان. أما <b>إظهار آخر ثلاث مرات طبّقتها فيها</b> فهو التدقيق الحقيقي.',
-           o:["خلال الأشهر الستة الماضية، والسجلات متاحة","قبل أكثر من سنة","لم ننفذ أي تدقيق"],
-           r:'هذه <b>عدم مطابقة كبرى</b>، وهي التي توقف تدقيق الاعتماد عند الباب.<div class="why">لا يُستوفى البند 9.2 بوجود <i>برنامج</i> تدقيق، بل بـ<b>سجلات تدقيقات نُفذت فعلا</b>، ولم يجد المُجمّع أيا منها خلال 12 شهرا.</div>' } },
-
-    { n:"05", tag:"EU AI ACT · ART. 9", est:66,
-      find:{ en:[["ISO 23894 · CL. 6.1","Risk register review cadence is not evidenced across the lifecycle."]],
-             ar:[["ISO 23894 · CL. 6.1","لا دليل على وتيرة مراجعة سجل المخاطر عبر دورة الحياة."]] },
-      en:{ q:'Risk management. <b>Article 9</b> requires a risk management system that runs across the entire lifecycle, not a document written once.<br><br>How often is your AI risk register actually reviewed?',
-           why:'<b>Why I\'m asking:</b> Article 9(2) uses the words "continuous iterative process", and ISO 23894 Clause 6 mirrors it. Unblocks 16 requirements.',
-           o:["Quarterly, with dated minutes","Annually, at the management review","It exists but has no fixed cadence"],
-           r:'Noted. I\'ll test that against reality later rather than take it on trust.<div class="why">Article 9 is judged on evidence of iteration: versions, dates, and changes that followed an event. If the register hasn\'t changed since it was written, a reviewer reads that as a document, not a system.</div>' },
-      ar:{ q:'إدارة المخاطر. تتطلب <b>المادة 9</b> نظام إدارة مخاطر يعمل عبر دورة الحياة كاملة، لا مستندا يُكتب مرة واحدة.<br><br>كم مرة يُراجع سجل مخاطر الذكاء الاصطناعي لديك فعليا؟',
-           why:'<b>سبب السؤال:</b> تستخدم المادة 9(2) عبارة «عملية تكرارية مستمرة»، ويعكسها البند 6 من آيزو 23894. ويفتح 16 متطلبا.',
-           o:["ربع سنويا، مع محاضر مؤرخة","سنويا، ضمن مراجعة الإدارة","موجود لكن دون وتيرة ثابتة"],
-           r:'سُجل. وسأختبر ذلك لاحقا مقابل الواقع بدل أن آخذه على محمل الثقة.<div class="why">تُقاس المادة 9 بأدلة التكرار: الإصدارات، والتواريخ، والتغييرات التي تلت حدثا. وإن لم يتغير السجل منذ كتابته، يقرؤه المراجع بوصفه مستندا لا نظاما.</div>' } },
-
-    { n:"06", tag:"EU AI ACT · ART. 10", est:75,
-      find:{ en:[["EU AI ACT · ART. 10(2)(f)","No documented bias examination for an Annex III employment system."]],
-             ar:[["EU AI ACT · ART. 10(2)(f)","لا فحص موثق للتحيز في نظام توظيف ضمن الملحق الثالث."]] },
-      en:{ q:'Data governance. <b>Article 10(2)(f)</b> requires examination for bias that could affect health, safety or fundamental rights.<br><br>Have you examined your training data for bias, and are the results written down?',
-           why:'<b>Why I\'m asking:</b> for an employment system this is the highest-exposure obligation you have. It also drives ISO 42001 A.7.4 and the NIST MEASURE function. Unblocks 21 requirements.',
-           o:["Yes, documented with metrics per protected characteristic","Informally, nothing written down","Not yet, it's planned"],
-           r:'That goes on the register as a priority item.<div class="why">Article 10 is one of the few obligations where the absence of a record is itself the nonconformity. For employment systems, a market surveillance authority will ask for this first.</div>' },
-      ar:{ q:'حوكمة البيانات. تتطلب <b>المادة 10(2)(و)</b> فحصا للتحيز الذي قد يؤثر في الصحة أو السلامة أو الحقوق الأساسية.<br><br>هل فحصت بيانات التدريب بحثا عن التحيز، وهل النتائج مدونة؟',
-           why:'<b>سبب السؤال:</b> في نظام توظيف، هذا أكثر التزاماتك تعرضا للمساءلة. كما يقود البند A.7.4 من آيزو 42001 ووظيفة القياس في إطار نيست. ويفتح 21 متطلبا.',
-           o:["نعم، موثق بمقاييس لكل خاصية محمية","بشكل غير رسمي، دون توثيق","ليس بعد، وهو مخطط له"],
-           r:'يُدرج في السجل كبند ذي أولوية.<div class="why">المادة 10 من الالتزامات القليلة التي يشكل فيها غياب السجل ذاته عدم مطابقة. وفي أنظمة التوظيف، تطلب سلطة مراقبة السوق هذا أولا.</div>' } },
-
-    { n:"07", tag:"EU AI ACT · ART. 14", est:85,
-      en:{ q:'Human oversight. <b>Article 14</b> requires that a natural person can understand the output, decide not to use it, and override it.<br><br>Can a recruiter override the score, and is the override recorded?',
-           why:'<b>Why I\'m asking:</b> oversight that can\'t be evidenced doesn\'t count. This also maps to ISO 42001 A.9.2 and NIST GOVERN 3.2. Unblocks 12 requirements.',
-           o:["Yes, overrides are possible and logged with a reason","Overrides are possible but not recorded","The score is advisory, nobody formally overrides it"],
-           r:'Recorded. I\'ll ask the collector to look for override events in your application logs and reconcile that with what you\'ve told me.<div class="why">Article 14(4)(d) is about the ability to <i>disregard</i> the output. If no override has ever been exercised, that is not proof it can\'t be, but it is the first thing a reviewer probes.</div>' },
-      ar:{ q:'الإشراف البشري. تتطلب <b>المادة 14</b> أن يتمكن شخص طبيعي من فهم المخرجات، وأن يقرر عدم استخدامها، وأن يتجاوزها.<br><br>هل يستطيع المسؤول عن التوظيف تجاوز النتيجة، وهل يُسجل التجاوز؟',
-           why:'<b>سبب السؤال:</b> الإشراف الذي لا يمكن إثباته لا يُحتسب. وينطبق أيضا على A.9.2 من آيزو 42001 وGOVERN 3.2 في نيست. ويفتح 12 متطلبا.',
-           o:["نعم، التجاوز ممكن ويُسجل مع السبب","التجاوز ممكن لكنه لا يُسجل","النتيجة استرشادية، ولا أحد يتجاوزها رسميا"],
-           r:'سُجل. وسأطلب من المُجمّع البحث عن أحداث تجاوز في سجلات التطبيق ومطابقتها بما ذكرته.<div class="why">تتعلق المادة 14(4)(د) بالقدرة على <i>تجاهل</i> المخرجات. وعدم ممارسة أي تجاوز ليس دليلا على استحالته، لكنه أول ما يفحصه المراجع.</div>' } },
-
-    { n:"08", tag:"EU AI ACT · ART. 12", est:94, dis:14, probe:"1,318",
-      find:{ en:[["EU AI ACT · ART. 19","Log retention below the six-month floor observed on the logging bucket."]],
-             ar:[["EU AI ACT · ART. 19","مدة الاحتفاظ بالسجلات أقل من الحد الأدنى المقرر بستة أشهر."]] },
-      en:{ q:'Logging. Your architecture says automatic logging is enabled.<br><br>How long are those logs retained?',
-           why:'<b>Why I\'m asking:</b> <b>Article 19</b> sets a floor of six months for high-risk systems, and Article 12 governs what must be in them.',
-           o:["Twelve months or more","Ninety days","Thirty days"],
-           r:'The collector already had a view on this.<div class="evid"><div class="evid-h">' + '▲ TRIANGULATION · RETENTION POLICY' + '</div>' +
-              '<div class="evid-r"><b>OBSERVED</b><span class="bad">Lifecycle rule on <code>s3://prod-logs</code> expires objects after <b>30 days</b>.</span></div>' +
-              '<div class="evid-r"><b>REQUIRED</b><span>Article 19: at least six months, appropriate to the intended purpose.</span></div></div>' +
-              '<div class="why">This one is cheap to fix and expensive to leave. Until that rule changes, every other logging obligation rests on records that delete themselves.</div>' },
-      ar:{ q:'التسجيل. تذكر بنيتك أن التسجيل التلقائي مفعّل.<br><br>ما مدة الاحتفاظ بتلك السجلات؟',
-           why:'<b>سبب السؤال:</b> تضع <b>المادة 19</b> حدا أدنى بستة أشهر للأنظمة عالية المخاطر، وتحكم المادة 12 محتوى تلك السجلات.',
-           o:["اثنا عشر شهرا أو أكثر","تسعون يوما","ثلاثون يوما"],
-           r:'كان لدى المُجمّع رأي في هذا مسبقا.<div class="evid"><div class="evid-h">▲ تثليث · سياسة الاحتفاظ</div>' +
-              '<div class="evid-r"><b>المرصود</b><span class="bad">قاعدة دورة حياة على <code>s3://prod-logs</code> تحذف الكائنات بعد <b>30 يوما</b>.</span></div>' +
-              '<div class="evid-r"><b>المطلوب</b><span>المادة 19: ستة أشهر على الأقل، بما يتناسب مع الغرض المقصود.</span></div></div>' +
-              '<div class="why">إصلاح هذا رخيص، وتركه مكلف. فما دامت تلك القاعدة قائمة، تستند كل التزامات التسجيل الأخرى إلى سجلات تحذف نفسها.</div>' } },
-
-    { n:"09", tag:"EU AI ACT · ANNEX IV", est:103,
-      en:{ q:'Technical documentation. <b>Annex IV</b> lists nine headings that must exist before the system is placed on the market.<br><br>Which best describes what you hold today?',
-           why:'<b>Why I\'m asking:</b> your architecture document covers roughly four of the nine. Annex IV is assessed as a set, not a best effort. Unblocks 18 requirements.',
-           o:["A complete Annex IV pack, maintained under version control","Partial, spread across engineering documents","Nothing assembled against Annex IV specifically"],
-           r:'That matches what I read. I\'ll map what you have against the nine headings and show you the gaps by name.<div class="why">Most teams already hold 60 to 70 percent of Annex IV inside engineering docs. The work is assembly and maintenance, not authoring from scratch.</div>' },
-      ar:{ q:'التوثيق التقني. يعدد <b>الملحق الرابع</b> تسعة عناوين يجب توافرها قبل طرح النظام في السوق.<br><br>أي وصف ينطبق على ما لديك اليوم؟',
-           why:'<b>سبب السؤال:</b> يغطي مستند بنيتك أربعة من التسعة تقريبا. ويُقيَّم الملحق الرابع كمجموعة، لا كجهد أفضل. ويفتح 18 متطلبا.',
-           o:["حزمة كاملة للملحق الرابع، تحت ضبط الإصدارات","جزئي، موزع على مستندات هندسية","لا شيء مجمّع خصيصا وفق الملحق الرابع"],
-           r:'هذا يطابق ما قرأته. سأقابل ما لديك بالعناوين التسعة وأعرض الفجوات بالاسم.<div class="why">تملك معظم الفرق أصلا 60 إلى 70 بالمئة من الملحق الرابع داخل مستنداتها الهندسية. والعمل هو التجميع والصيانة، لا التأليف من الصفر.</div>' } },
-
-    { n:"10", tag:"EU AI ACT · ART. 72", est:112,
-      find:{ en:[["EU AI ACT · ART. 72","No post-market monitoring plan proportionate to a high-risk system."]],
-             ar:[["EU AI ACT · ART. 72","لا خطة مراقبة بعد الطرح تتناسب مع نظام عالي المخاطر."]] },
-      en:{ q:'Post-market monitoring. <b>Article 72</b> requires a plan proportionate to the risk that actively collects performance data after deployment.<br><br>Do you have one?',
-           why:'<b>Why I\'m asking:</b> this is the obligation that never gets written because it starts after launch. It also carries ISO 42001 Clause 9.1 and NIST MANAGE 4.1.',
-           o:["Yes, a documented plan with defined metrics","We monitor uptime and errors, nothing AI-specific","No plan yet"],
-           r:'On the register.<div class="why">Uptime monitoring is not post-market monitoring. Article 72 wants drift, complaints, and real-world performance against the intended purpose, fed back into the Article 9 risk system.</div>' },
-      ar:{ q:'المراقبة بعد الطرح. تتطلب <b>المادة 72</b> خطة تتناسب مع المخاطر وتجمع بيانات الأداء فعليا بعد النشر.<br><br>هل لديك واحدة؟',
-           why:'<b>سبب السؤال:</b> هذا الالتزام لا يُكتب أبدا لأنه يبدأ بعد الإطلاق. ويحمل معه البند 9.1 من آيزو 42001 وMANAGE 4.1 في نيست.',
-           o:["نعم، خطة موثقة بمقاييس محددة","نراقب التوافر والأخطاء، دون شيء خاص بالذكاء الاصطناعي","لا خطة حتى الآن"],
-           r:'يُدرج في السجل.<div class="why">مراقبة التوافر ليست مراقبة بعد الطرح. تريد المادة 72 الانحراف، والشكاوى، والأداء الواقعي مقابل الغرض المقصود، ثم تغذيتها في نظام مخاطر المادة 9.</div>' } },
-
-    { n:"11", tag:"EU AI ACT · ART. 73", est:121,
-      en:{ q:'Serious incidents. <b>Article 73</b> requires reporting to the market surveillance authority, in some cases within <b>15 days</b> of becoming aware.<br><br>Is there a defined path for that today?',
-           why:'<b>Why I\'m asking:</b> the clock starts at awareness, not at triage. Without a named owner and a route, the deadline is missed by default. Also maps to ISO 42001 A.10.4.',
-           o:["Yes, a named owner and a documented route","It would go through our general incident process","No defined path"],
-           r:'Understood. I\'ll treat that as a control to be designed rather than a nonconformity, since nothing has been triggered yet.<div class="why">A general incident process is usually a reasonable base. What it lacks is the AI-specific trigger definition and the regulatory clock.</div>' },
-      ar:{ q:'الحوادث الجسيمة. تتطلب <b>المادة 73</b> الإبلاغ إلى سلطة مراقبة السوق، وفي بعض الحالات خلال <b>15 يوما</b> من العلم بالحادث.<br><br>هل يوجد مسار محدد لذلك اليوم؟',
-           why:'<b>سبب السؤال:</b> تبدأ المهلة من لحظة العلم، لا من الفرز. وبغياب مالك محدد ومسار واضح، يُفوَّت الموعد تلقائيا. وينطبق أيضا على A.10.4 من آيزو 42001.',
-           o:["نعم، مالك محدد ومسار موثق","سيمر عبر عملية الحوادث العامة لدينا","لا يوجد مسار محدد"],
-           r:'مفهوم. سأعامل ذلك كضابط يحتاج تصميما لا كعدم مطابقة، لأن شيئا لم يُفعَّل بعد.<div class="why">عملية الحوادث العامة أساس معقول عادة. وما ينقصها هو تعريف المُحفِّز الخاص بالذكاء الاصطناعي والمهلة التنظيمية.</div>' } },
-
-    { n:"12", tag:"EU AI ACT · ART. 43/49", est:130,
-      en:{ q:'Conformity. Before placing a high-risk system on the market you need a conformity assessment, an EU declaration, and registration in the <b>EU database</b>.<br><br>Where are you in that?',
-           why:'<b>Why I\'m asking:</b> Annex III systems generally allow internal control under Article 43, which is good news. But the declaration and registration are still hard gates. Unblocks 14 requirements.',
-           o:["Assessment done, declaration signed, registered","Started, nothing signed yet","Not started"],
-           r:'That\'s consistent with the rest of the profile.<div class="why">Internal control means you can self-assess, so this is largely documentation and sequencing. It cannot complete until the Article 9, 10 and 12 gaps above are closed, because the declaration attests to them.</div>' },
-      ar:{ q:'المطابقة. قبل طرح نظام عالي المخاطر في السوق تحتاج إلى تقييم مطابقة، وإعلان مطابقة أوروبي، وتسجيل في <b>قاعدة بيانات الاتحاد</b>.<br><br>أين وصلت في ذلك؟',
-           why:'<b>سبب السؤال:</b> تتيح أنظمة الملحق الثالث عموما الضبط الداخلي بموجب المادة 43، وهذا خبر جيد. لكن الإعلان والتسجيل يبقيان بوابتين إلزاميتين. ويفتح 14 متطلبا.',
-           o:["اكتمل التقييم، ووُقّع الإعلان، وتم التسجيل","بدأنا، ولم يُوقّع شيء بعد","لم نبدأ"],
-           r:'هذا متسق مع بقية الملف.<div class="why">الضبط الداخلي يعني أنك تستطيع التقييم ذاتيا، فالمسألة توثيق وترتيب بالدرجة الأولى. ولا يمكن إتمامها قبل إغلاق فجوات المواد 9 و10 و12 أعلاه، لأن الإعلان يشهد عليها.</div>' } },
-
-    { n:"13", tag:"EU AI ACT · ART. 4", est:139,
-      find:{ en:[["ISO 42001 · CL. 7.2","Competence not evidenced for operators of the system."]],
-             ar:[["ISO 42001 · CL. 7.2","لا دليل على كفاءة مشغّلي النظام."]] },
-      en:{ q:'AI literacy. <b>Article 4</b> has applied since February 2025, and it obliges you to ensure a sufficient level of competence among the people who operate the system.<br><br>Have the recruiters using this system been trained on it?',
-           why:'<b>Why I\'m asking:</b> Article 4 is already in force, unlike most of the high-risk obligations. ISO 42001 Clause 7.2 asks the same question and wants records.',
-           o:["Yes, with attendance records","An informal briefing, no records","No training yet"],
-           r:'Noted, with a record gap attached.<div class="why">Clause 7.2 is satisfied by evidence of competence, which usually means attendance, content, and date. This is the cheapest finding on your register to close.</div>' },
-      ar:{ q:'الإلمام بالذكاء الاصطناعي. تسري <b>المادة 4</b> منذ فبراير 2025، وتلزمك بضمان مستوى كاف من الكفاءة لدى من يشغّلون النظام.<br><br>هل دُرّب المسؤولون عن التوظيف على هذا النظام؟',
-           why:'<b>سبب السؤال:</b> المادة 4 نافذة بالفعل، بخلاف معظم التزامات الأنظمة عالية المخاطر. ويطرح البند 7.2 من آيزو 42001 السؤال نفسه ويطلب سجلات.',
-           o:["نعم، مع سجلات حضور","إحاطة غير رسمية، دون سجلات","لا تدريب حتى الآن"],
-           r:'سُجل، مع فجوة في السجلات.<div class="why">يُستوفى البند 7.2 بأدلة الكفاءة، وتعني عادة الحضور والمحتوى والتاريخ. وهذه أرخص ملاحظة في سجلك يمكن إغلاقها.</div>' } },
-
-    { n:"14", tag:"ISO 42001 · A.10", est:148,
-      find:{ en:[["ISO 42001 · A.10.2","Third-party AI obligations not evidenced in supplier agreements."]],
-             ar:[["ISO 42001 · A.10.2","لا دليل على التزامات الذكاء الاصطناعي في اتفاقيات المورّدين."]] },
-      en:{ q:'Third parties. Your architecture shows the scoring model is served through an external provider.<br><br>What do your contracts with them say about AI obligations?',
-           why:'<b>Why I\'m asking:</b> ISO 42001 <b>A.10.2</b> and <b>A.10.3</b>, plus EU AI Act Article 25, which can make you the provider of record. Unblocks 9 requirements.',
-           o:["Contracts include AI-specific obligations and audit rights","Standard DPA only, nothing AI-specific","I'd have to check the contract"],
-           r:'On the register.<div class="why">A DPA covers personal data, not model behaviour, evaluation access, or change notification. Under Article 25 a substantial modification, or your branding on the output, can make you the provider carrying the full Chapter III obligations.</div>' },
-      ar:{ q:'الأطراف الثالثة. تُظهر بنيتك أن نموذج التقييم يُقدَّم عبر مزوّد خارجي.<br><br>ماذا تنص عقودك معه بشأن التزامات الذكاء الاصطناعي؟',
-           why:'<b>سبب السؤال:</b> البندان <b>A.10.2</b> و<b>A.10.3</b> من آيزو 42001، إضافة إلى المادة 25 من القانون الأوروبي التي قد تجعلك المزوّد المسجل. ويفتح 9 متطلبات.',
-           o:["العقود تتضمن التزامات خاصة بالذكاء الاصطناعي وحقوق تدقيق","اتفاقية معالجة بيانات فقط، دون بنود خاصة","سأحتاج إلى مراجعة العقد"],
-           r:'يُدرج في السجل.<div class="why">تغطي اتفاقية معالجة البيانات البيانات الشخصية، لا سلوك النموذج ولا صلاحية التقييم ولا الإخطار بالتغيير. وبموجب المادة 25، قد يجعلك أي تعديل جوهري، أو وضع علامتك على المخرجات، المزوّد الذي يتحمل كامل التزامات الفصل الثالث.</div>' } },
-
-    { n:"15", tag:"EU AI ACT · ART. 27", est:168,
-      find:{ en:[["EU AI ACT · ART. 27","No fundamental rights impact assessment recorded before first use."]],
-             ar:[["EU AI ACT · ART. 27","لا تقييم أثر على الحقوق الأساسية مسجل قبل أول استخدام."]] },
-      en:{ q:'Last one. <b>Article 27</b> requires a fundamental rights impact assessment for certain deployers of Annex III systems, before first use.<br><br>Has one been completed for this system?',
-           why:'<b>Why I\'m asking:</b> it closes the loop between your risk register and the people the system actually affects, and ISO 23894 Clause 6.4.3 asks for the same analysis. Unblocks 11 requirements.',
-           o:["Yes, completed and reviewed","In progress","No, and I'm not sure whether we're in scope"],
-           r:'That completes what I need from you.<div class="why">Scope under Article 27 turns on who the deployer is and the purpose. On an employment system used on candidates, assume you are in scope until a lawyer tells you otherwise.</div>' },
-      ar:{ q:'السؤال الأخير. تتطلب <b>المادة 27</b> تقييم أثر على الحقوق الأساسية لدى بعض ناشري أنظمة الملحق الثالث، قبل أول استخدام.<br><br>هل أُنجز واحد لهذا النظام؟',
-           why:'<b>سبب السؤال:</b> يغلق الحلقة بين سجل مخاطرك والأشخاص الذين يؤثر فيهم النظام فعلا، ويطلب البند 6.4.3 من آيزو 23894 التحليل نفسه. ويفتح 11 متطلبا.',
-           o:["نعم، أُنجز وروجع","قيد الإنجاز","لا، ولست متأكدا إن كنا ضمن النطاق"],
-           r:'بهذا يكتمل ما أحتاجه منك.<div class="why">يتوقف النطاق بموجب المادة 27 على هوية الناشر والغرض. وفي نظام توظيف يُطبق على المرشحين، افترض أنك ضمن النطاق حتى يخبرك محام بغير ذلك.</div>' } }
-    ];
-
-    var qi = 0;
-
-    function opts(list){
-      return '<div class="opts">' + list.map(function(t, i){
-        var parts = t.split("|");
-        return '<div class="opt" data-i="' + i + '"><span class="k">' + "ABC".charAt(i) + '</span>' +
-               '<span>' + parts[0] + '</span>' +
-               (parts[1] ? '<span class="att">' + parts[1] + '</span>' : "") + '</div>';
+    function renderOptions(q){
+      if(!q.options || !q.options.length) return "";
+      return '<div class="opts">' + q.options.map(function(o, i){
+        return '<div class="opt" data-i="' + i + '"><span class="k">' + "ABCDEFGH".charAt(i) + '</span>' +
+               '<span>' + esc(o.label) + '</span>' +
+               (o.negates ? '<span class="att">ATTESTATION</span>' : "") + '</div>';
       }).join("") + '</div>';
     }
 
-    function ask(){
-      var q = Q[qi];
-      if(!q){ finish(); return; }
-      var d = L(q);
-      bot('<div class="qh"><span class="qn keep">' + q.n + TX[lang].of + '</span><span class="qt keep">' + q.tag + '</span></div>' +
-          d.q + '<div class="why">' + d.why + '</div>' + opts(d.o));
+    function askCurrent(){
+      var q = qqueue[qi];
+      if(!q){ loadMoreQuestions(); return; }
+      askedCount++;
+      bot(
+        '<div class="qh"><span class="qn keep">Q' + askedCount + '</span>' +
+        (q.unblocks ? '<span class="qt keep">UNBLOCKS ' + q.unblocks + ' REQUIREMENTS</span>' : '') + '</div>' +
+        esc(q.text) +
+        (q.why_asked ? '<div class="why">' + esc(q.why_asked) + '</div>' : '') +
+        extractedHint(q) +
+        renderOptions(q) +
+        (!q.options || !q.options.length || q.allow_freetext
+          ? '<div class="why">' + (q.options && q.options.length ? 'Or type your own answer below.' : 'Type your answer below.') + '</div>'
+          : '')
+      );
     }
 
-    function answer(ix){
-      var q = Q[qi];
-      if(!q) return;
-      var d = L(q);
-      var label = d.o[ix].split("|")[0];
-      me(label);
-      if(q.est) est = q.est;
-      if(q.dis) dis = q.dis;
-      upd();
-      if(q.probe) document.getElementById("kProbe").textContent = q.probe;
+    function clearLiveOptions(){
+      var all = S.querySelectorAll(".opts");
+      if(all.length) all[all.length - 1].remove();
+    }
+
+    async function answerReal(q, option, freetextValue){
+      var label = option ? option.label : freetextValue;
+      me(esc(label));
+      clearLiveOptions();
       typing();
-      after(function(){
+      try{
+        var res = await submitAnswers(eid, [{
+          qid: q.qid,
+          field_path: q.field_path,
+          value: option ? option.value : null,
+          negates: option ? !!option.negates : false,
+          freetext: freetextValue || null,
+        }]);
         untype();
-        (L(q.find) || []).forEach(function(f){ finding(f[0], f[1]); });
-        bot(typeof d.r === "function" ? d.r(label) : d.r, q.flag ? "flag" : "");
+        coverage = res.coverage;
+        upd();
         qi++;
-        after(ask, 400);
-      }, q.flag ? 1250 : 850);
-    }
-
-    function finish(){
-      var t = TX[lang];
-      bot(t.finish +
-        '<div class="why">' + t.landed(est, finds) + '</div>' +
-        '<div style="margin-top:18px"><a class="btn-p" href="/gap"><span>' + t.viewGap + '</span>' +
-        '<svg viewBox="0 0 14 14" fill="none"><path d="M3 7h8M8 3.5 11.5 7 8 10.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>');
-    var gcta = S.querySelector('a[href="/gap"]');
-    if (gcta && typeof window.mount === "function"){
-      gcta.addEventListener("click", function(e){ e.preventDefault(); window.mount("gap"); });
-    }
+        if(res.complete){ await finish(); return; }
+        askCurrent();
+      }catch(err){
+        untype();
+        bot('⚠ <b>Real error submitting that answer:</b> ' + esc(err.message));
+      }
     }
 
     S.addEventListener("click", function(e){
       var o = e.target.closest(".opt");
       if(!o) return;
-      var box = o.closest(".opts");
-      if(box) box.remove();
-      answer(parseInt(o.getAttribute("data-i"), 10) || 0);
+      var q = qqueue[qi];
+      if(!q || !q.options) return;
+      var ix = parseInt(o.getAttribute("data-i"), 10) || 0;
+      answerReal(q, q.options[ix], null);
     });
 
+    async function loadMoreQuestions(){
+      typing();
+      try{
+        var data = await getQuestions(eid, 6);
+        // Defensive: handleUpload already waits out real extraction before ever
+        // calling this, but if something else lands here mid-extraction (e.g. a
+        // page reload against an engagement that's still processing), wait it out
+        // here too rather than ask a premature batch of questions.
+        //
+        // Separately, GET /questions is itself now async: rendering a batch calls
+        // the real rephraser once per question (a real local-model call each time),
+        // so the first call to fetch a new batch kicks that off in the backend and
+        // comes back "processing" immediately -- poll the same endpoint, same as
+        // the upload flow above, until it actually finishes.
+        while(data.documents_processing || data.status === "processing"){
+          await sleep(4000);
+          data = await getQuestions(eid, 6);
+        }
+        untype();
+        coverage = data.coverage;
+        upd();
+        qqueue = data.questions || [];
+        qi = 0;
+        if(data.complete || qqueue.length === 0){ await finish(); return; }
+        askCurrent();
+      }catch(err){
+        untype();
+        bot('⚠ <b>Real error fetching the next questions:</b> ' + esc(err.message));
+      }
+    }
+
+    async function finish(){
+      typing();
+      try{
+        var rpt = await getReport(eid);
+        untype();
+        var s = rpt.summary;
+        bot(
+          '<b>Assessment complete.</b> This is the real applicability report for this engagement, from GET /engagements/' + esc(eid) + '/report.' +
+          '<div class="why">' +
+            'Status: <b>' + esc(rpt.status) + '</b>. ' +
+            s.controls_assessed + ' controls assessed &middot; ' +
+            s.applicable + ' applicable &middot; ' +
+            s.not_applicable + ' not applicable &middot; ' +
+            s.needs_info + ' needs info &middot; ' +
+            s.needs_review + ' needs review. ' +
+            'Findings on record: ' + (rpt.findings ? rpt.findings.total : 0) + '.' +
+          '</div>' +
+          '<div style="margin-top:18px"><a class="btn-p" href="/gap"><span>View gap assessment</span>' +
+          '<svg viewBox="0 0 14 14" fill="none"><path d="M3 7h8M8 3.5 11.5 7 8 10.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>'
+        );
+      }catch(err){
+        untype();
+        bot('⚠ <b>Real error fetching the report:</b> ' + esc(err.message));
+      }
+    }
+
+    var realFileInput = null;
+
+    function boot(){
+      bot(
+        'I\'m the assurance auditor for this assessment. Upload what you have and I\'ll read it, extract only the facts this framework needs, then ask about what your documents don\'t say.' +
+        '<div class="drop" id="dropZ">' +
+          '<div class="i"><svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4M7.5 8.5 12 4l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>' +
+          '<div class="m">Drop your documents, or click to select</div>' +
+          '<div class="s">PDF &middot; DOCX &middot; MD &middot; TXT &middot; JSON &middot; YAML</div>' +
+        '</div>'
+      );
+      if(!realFileInput){
+        realFileInput = document.createElement("input");
+        realFileInput.type = "file";
+        realFileInput.multiple = true;
+        realFileInput.hidden = true;
+        root.appendChild(realFileInput);
+        realFileInput.addEventListener("change", function(){
+          var files = Array.from(realFileInput.files || []);
+          if(files.length) handleUpload(files);
+          realFileInput.value = "";
+        });
+      }
+      var dz = document.getElementById("dropZ");
+      if(dz) dz.addEventListener("click", function(){ realFileInput.click(); });
+    }
+
+    /* The "AI thinking" panel: shown the instant upload starts, removed only
+       once POST /engagements and POST /engagements/{id}/documents have both
+       actually returned -- there is no minimum or fixed delay here. */
+    function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+
+    async function handleUpload(files){
+      me("Uploaded " + files.length + " document" + (files.length === 1 ? "" : "s") + ": " +
+         files.map(function(f){ return esc(f.name); }).join(", "));
+      var dz = document.getElementById("dropZ");
+      if(dz) dz.remove();
+      typing();
+      try{
+        if(!eid){
+          var eng = await openEngagement();
+          eid = eng.engagement_id;
+        }
+        // POST .../documents now returns immediately -- the real extraction (real
+        // per-field local-model calls, genuinely minutes long) runs in the backend's
+        // own background task, not on this request. Poll the real status endpoint
+        // until it actually finishes; no fixed timer, no assumed duration.
+        await uploadDocuments(eid, files);
+        var status;
+        do {
+          await sleep(4000);
+          status = await getDocumentsStatus(eid);
+        } while(status.status === "processing");
+
+        untype();
+
+        if(status.status === "error"){
+          bot('⚠ <b>Real error during extraction:</b> ' + esc(status.error));
+          return;
+        }
+
+        var result = status.result;
+        coverage = result.coverage;
+        upd();
+        var lines = (result.extractions || []).map(function(x){
+          return '<div class="ex"><span class="f keep">' + esc(x.field) + '</span>' +
+                 '<span class="v keep">' + fmtVal(x.value) + '</span>' +
+                 '<span class="c keep">' + (x.confidence != null ? x.confidence.toFixed(2) : "—") + '</span>' +
+                 '<span class="src keep">' + esc(x.cite || "") + '</span></div>';
+        }).join("");
+        var extractedCount = result.fields_extracted != null ? result.fields_extracted : (result.extractions || []).length;
+        bot(
+          'Read ' + (result.chunks_indexed != null ? result.chunks_indexed : "?") + ' chunks indexed, extracted ' + extractedCount + ' fact' + (extractedCount === 1 ? "" : "s") + '.' +
+          (lines ? '<div class="extract"><div class="extract-h">EXTRACTED &middot; CITED TO SOURCE</div>' + lines + '</div>' : '') +
+          '<div class="why">' + esc(result.note || "Nothing here is relied on yet -- extractions are confirmed or corrected in the questions that follow.") + '</div>'
+        );
+        await loadMoreQuestions();
+      }catch(err){
+        untype();
+        bot('⚠ <b>Real error from the backend:</b> ' + esc(err.message));
+      }
+    }
+
+    /* the bottom compose bar doubles as the free-text answer path for
+       whatever the currently displayed real question is */
     window.chxSend = function(){
       var i = document.getElementById("ci");
-      if(!i.value.trim()) return;
-      me(i.value); i.value = "";
-      typing();
-      after(function(){ untype(); bot(TX[lang].noted); }, 600);
+      var v = i.value.trim();
+      if(!v) return;
+      var q = qqueue[qi];
+      if(!q){ i.value = ""; return; }
+      i.value = "";
+      answerReal(q, null, v);
     };
 
-    /* switching language restarts the interview in that language */
-    function restart(){
-      clearTimers();
-        S.innerHTML = "";
-      qi = 0; est = 0; doc = 0; dis = 0; finds = 0;
-      document.getElementById("kProbe").textContent = "1,204";
-      document.getElementById("fnCount").textContent = "0";
-      document.getElementById("findings").innerHTML =
-        '<p class="muted" data-i="findEmpty">' + T[lang].findEmpty + '</p>';
-      upd();
-      boot();
-    }
+    /* language switching only refreshes the chrome (nav, sidebar labels) --
+       it never wipes a real, in-progress engagement */
+    function restart(){ applyLang(); }
     window.__chxRestart = restart;
 
     applyLang();
     upd();
-    boot();
+    if(!eid) boot();
 
   } finally {
     window.IntersectionObserver = _origIO;

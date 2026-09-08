@@ -23,6 +23,27 @@ export async function POST(req: Request) {
     }
     const { workEmail, password } = parsed.data;
 
+    // DEMO-ONLY BYPASS: the real Aiven MySQL behind `pool` is unreachable right
+    // now (billing hold on the Aiven side, confirmed independently of this app).
+    // This lets a local demo proceed through the *actual* login form without a
+    // live database, without touching real user data or weakening production:
+    // it only fires when DEMO_BYPASS_LOGIN=true is set (never set on Vercel) AND
+    // NODE_ENV is not "production", for one fixed demo account only.
+    if (
+      process.env.DEMO_BYPASS_LOGIN === "true" &&
+      process.env.NODE_ENV !== "production" &&
+      workEmail === "demo@taharaai.com" &&
+      password === "TaharaDemo!2026"
+    ) {
+      const token = await createToken({ userId: 0, email: workEmail });
+      const res = NextResponse.json({
+        redirect: "/overview",
+        user: { id: 0, fullName: "Demo User", workEmail, organisation: "Tahara AI Demo" },
+      });
+      res.cookies.set(SESSION_COOKIE, token, cookieOptions);
+      return res;
+    }
+
     const [rows] = await pool.query<UserRow[]>(
       "SELECT id, full_name, organisation, work_email, password_hash, email_verified FROM users WHERE work_email = ? LIMIT 1",
       [workEmail]

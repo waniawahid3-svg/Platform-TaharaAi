@@ -53,7 +53,7 @@ const MARKUP = `
           <svg viewBox="0 0 14 14" fill="none"><path d="M11.5 7A4.5 4.5 0 1 1 7 2.5M7 .8v3.4L9.2 2 7 .8Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span data-i="rerun">Re-run interview</span>
         </a>
-        <a class="btn-p" href="/report">
+        <a class="btn-p" href="/report" id="gpReportLink">
           <svg viewBox="0 0 14 14" fill="none"><path d="M7 9.5V2M4.2 6.7 7 9.5l2.8-2.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11.8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           <span data-i="export">Export report</span>
         </a>
@@ -78,7 +78,7 @@ const MARKUP = `
             </svg>
             <span class="rp"><span id="gpPct">0</span><i>%</i></span>
           </div>
-          <div class="ks" data-i="k1s">Share of the 187 master-scope requirements that are established and evidenced today.</div>
+          <div class="ks" id="gpK1s">Share of this framework's fields established and evidenced today, from a real engagement.</div>
         </div>
       </div>
       <div class="kc rv">
@@ -86,100 +86,74 @@ const MARKUP = `
           <span class="ki"><svg viewBox="0 0 24 24" fill="none"><path d="M5 6.5h14M5 12h14M5 17.5h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="m16.4 16.6 1.7 1.7 3-3.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           <span class="kl" data-i="k2l">REQUIREMENTS MAPPED</span>
         </div>
-        <div class="kn"><span id="gpMapped">0</span><small class="keep"> / 187</small></div>
+        <div class="kn"><span id="gpMapped">0</span><small class="keep" id="gpMappedDenom"> / 0</small></div>
         <div class="minibar"><i id="gpMapBar"></i></div>
-        <div class="ks" data-i="k2s">23 from documents, 14 observed by discovery, the rest attested in the interview.</div>
+        <div class="ks" id="gpK2s">&hellip;</div>
       </div>
       <div class="kc rv">
         <div class="kh">
           <span class="ki red"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4 3.5 19h17L12 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1" fill="currentColor"/></svg></span>
           <span class="kl" data-i="k3l">FINDINGS ON THE REGISTER</span>
         </div>
-        <div class="knr"><span class="kn" id="gpFinds">0</span><span class="chip red" data-i="k3c">2 MAJOR NONCONFORMITIES</span></div>
-        <div class="ks" data-i="k3s">Both majors block ISO/IEC 42001 certification until closed.</div>
+        <div class="knr"><span class="kn" id="gpFinds">0</span><span class="chip red" id="gpK3c">&hellip;</span></div>
+        <div class="ks" id="gpK3s">&hellip;</div>
       </div>
       <div class="kc rv">
         <div class="kh">
           <span class="ki green"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v4.2l2.8 1.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-          <span class="kl" data-i="k4l">REMAINING QUESTIONS</span>
+          <span class="kl" id="gpK4l">FIELDS STILL NEEDED</span>
         </div>
-        <div class="knr"><span class="kn" id="gpLeft">0</span><span class="chip green" data-i="k4c">CANNOT CHANGE THE OUTCOME</span></div>
-        <div class="ks" data-i="k4s">Deferred: none can alter the findings already established.</div>
+        <div class="knr"><span class="kn" id="gpLeft">0</span><span class="chip green" id="gpK4c">&hellip;</span></div>
+        <div class="ks" id="gpK4s">&hellip;</div>
       </div>
     </div>
 
     <!-- coverage -->
-    <div class="st rv"><h2 data-i="covT">Framework coverage</h2><span data-i="covS">OVERLAP COUNTED ONCE ACROSS THE MASTER SET</span></div>
-    <div class="cov">
-      <div class="cc rv">
-        <div class="ch"><span class="fn keep">EU AI Act</span><span class="fc keep">76 / 84</span></div>
-        <div class="fp"><span data-n="90">0</span><i>%</i></div>
-        <div class="bar"><i data-w="90"></i></div>
-        <div class="cs" data-i="ccS">REQUIREMENTS SATISFIED</div>
-      </div>
-      <div class="cc rv">
-        <div class="ch"><span class="fn keep">ISO/IEC 42001</span><span class="fc keep">56 / 62</span></div>
-        <div class="fp"><span data-n="90">0</span><i>%</i></div>
-        <div class="bar"><i data-w="90"></i></div>
-        <div class="cs" data-i="ccS">REQUIREMENTS SATISFIED</div>
-      </div>
-      <div class="cc rv">
-        <div class="ch"><span class="fn keep">ISO/IEC 23894</span><span class="fc keep">13 / 18</span></div>
-        <div class="fp"><span data-n="72">0</span><i>%</i></div>
-        <div class="bar"><i data-w="72"></i></div>
-        <div class="cs" data-i="ccS">REQUIREMENTS SATISFIED</div>
-      </div>
-      <div class="cc rv">
-        <div class="ch"><span class="fn keep">NIST AI RMF</span><span class="fc keep">19 / 23</span></div>
-        <div class="fp"><span data-n="81">0</span><i>%</i></div>
-        <div class="bar"><i data-w="81"></i></div>
-        <div class="cs" data-i="ccS">REQUIREMENTS SATISFIED</div>
-      </div>
-    </div>
+    <div class="st rv"><h2 data-i="covT">Framework coverage</h2><span id="gpCovSub">REAL, FROM THE LATEST COMPLETED ENGAGEMENT</span></div>
+    <div class="cov" id="gpCov"></div>
 
     <!-- register + rail -->
-    <div class="st rv"><h2 data-i="regT">Findings register</h2><span data-i="regS">11 FINDINGS · TRIANGULATED AGAINST LIVE SYSTEM STATE</span></div>
+    <div class="st rv"><h2 data-i="regT">Findings register</h2><span id="gpRegSub">&hellip;</span></div>
     <div class="main">
       <div class="reg rv">
         <div class="reg-h">
-          <span class="t" data-i="regH">SEVERITY · FINDING · OWNER · DUE · STATUS</span>
+          <span class="t" id="gpRegH">SEVERITY · FINDING · CONTROL · SOURCE · STATUS</span>
           <div class="filters" id="gpFilters">
-            <button class="flt on" data-f="all"><span data-i="fAll">ALL</span> · 11</button>
-            <button class="flt" data-f="maj"><span data-i="fMaj">MAJOR</span> · 2</button>
-            <button class="flt" data-f="min"><span data-i="fMin">MINOR</span> · 7</button>
-            <button class="flt" data-f="obs"><span data-i="fObs">OBSERVATION</span> · 1</button>
-            <button class="flt" data-f="det"><span data-i="fDet">DETERMINATION</span> · 1</button>
+            <button class="flt on" data-f="all"><span data-i="fAll">ALL</span> · <span id="gpCntAll">0</span></button>
+            <button class="flt" data-f="critical"><span>CRITICAL</span> · <span id="gpCntCritical">0</span></button>
+            <button class="flt" data-f="major"><span data-i="fMaj">MAJOR</span> · <span id="gpCntMajor">0</span></button>
+            <button class="flt" data-f="minor"><span data-i="fMin">MINOR</span> · <span id="gpCntMinor">0</span></button>
           </div>
         </div>
         <div id="gpRows"></div>
-        <div class="reg-f" data-i="regF">MAJORS STAY OPEN UNTIL THE COLLECTOR OBSERVES THEM RESOLVED, NOT UNTIL SOMEONE REPORTS THEM DONE.</div>
+        <div class="reg-f" id="gpRegF">Findings tied to system state stay open until re-observed resolved, not until someone reports them done.</div>
       </div>
 
       <aside class="rail">
         <div class="card rv">
-          <div class="sh" data-i="remT">REMEDIATION PRIORITIES</div>
+          <div class="sh" id="gpRemT">OPEN FINDINGS, BY SEVERITY</div>
           <div class="rem" id="gpRem"></div>
         </div>
         <div class="card rv">
           <div class="sh" data-i="provT">EVIDENCE PROVENANCE</div>
           <div class="prov">
-            <div class="pbar">
-              <i class="p1" data-w="12.3"></i><i class="p2" data-w="7.5"></i><i class="p3" data-w="70"></i><i class="p4" data-w="10.2"></i>
+            <div class="pbar" id="gpProvBar">
+              <i class="p1" data-w="0"></i><i class="p2" data-w="0"></i><i class="p3" data-w="0"></i><i class="p4" data-w="0"></i>
             </div>
             <div class="pleg">
-              <div class="pl"><i style="background:var(--acc)"></i><span data-i="pv1">From documents</span><span class="v keep">23</span></div>
-              <div class="pl"><i style="background:var(--green)"></i><span data-i="pv2">Observed by discovery</span><span class="v keep">14</span></div>
-              <div class="pl"><i style="background:var(--violet)"></i><span data-i="pv3">Attested in interview</span><span class="v keep">131</span></div>
-              <div class="pl"><i style="background:var(--line)"></i><span data-i="pv4">Not yet asked</span><span class="v keep">19</span></div>
+              <div class="pl"><i style="background:var(--acc)"></i><span data-i="pv1">From documents</span><span class="v keep" id="gpProv1">0</span></div>
+              <div class="pl"><i style="background:var(--green)"></i><span data-i="pv2">Observed by discovery</span><span class="v keep" id="gpProv2">0</span></div>
+              <div class="pl"><i style="background:var(--violet)"></i><span data-i="pv3">Attested in interview</span><span class="v keep" id="gpProv3">0</span></div>
+              <div class="pl"><i style="background:var(--line)"></i><span data-i="pv4">Not yet asked</span><span class="v keep" id="gpProv4">0</span></div>
             </div>
           </div>
         </div>
         <div class="card rv">
           <div class="sh" data-i="colT">COLLECTOR</div>
-          <div class="kv"><span class="k" data-i="c1">Status</span><span class="v live"><i></i><span data-i="cLive">LIVE</span></span></div>
-          <div class="kv"><span class="k" data-i="c2">Watching</span><span class="v keep">s3://prod-models · s3://prod-logs</span></div>
-          <div class="kv"><span class="k" data-i="c3">Probes run</span><span class="v keep">1,318</span></div>
-          <div class="kv"><span class="k" data-i="c4">Next sweep</span><span class="v keep">00:41</span></div>
+          <div class="kv"><span class="k" data-i="c1">Status</span><span class="v" id="gpColStatus"><i></i><span>&hellip;</span></span></div>
+          <div class="kv"><span class="k" data-i="c2">Watching</span><span class="v keep" id="gpColWatch">&hellip;</span></div>
+          <div class="kv"><span class="k">Framework</span><span class="v keep" id="gpColFramework">&hellip;</span></div>
+          <div class="kv"><span class="k">Report status</span><span class="v keep" id="gpColReportStatus">&hellip;</span></div>
         </div>
       </aside>
     </div>

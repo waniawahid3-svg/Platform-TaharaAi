@@ -1383,55 +1383,16 @@ function initGap(){
       }
     };
 
-    /* ---------- data ---------- */
-    var FINDS = [
-      { code:"ISO 42001 · A.4.2", sev:"maj", stat:"open", due:14, own:{en:"Platform team", ar:"فريق المنصة"},
-        t:{en:"Documented access control is not operating: 3 non-engineering principals on s3://prod-models.",
-           ar:"ضبط الوصول الموثق غير مطبق: 3 جهات من خارج الهندسة على s3://prod-models."} },
-      { code:"ISO 42001 · CL. 9.2", sev:"maj", stat:"open", due:30, own:{en:"GRC office", ar:"مكتب الحوكمة"},
-        t:{en:"No internal audit records in the last 12 months.",
-           ar:"لا سجلات تدقيق داخلي خلال الأشهر الاثني عشر الماضية."} },
-      { code:"EU AI ACT · ART. 6(3)", sev:"det", stat:"final", due:0, own:{en:"Legal counsel", ar:"المستشار القانوني"},
-        t:{en:"System is high-risk: Annex III employment with profiling; the derogation is unavailable.",
-           ar:"النظام عالي المخاطر: توظيف ضمن الملحق الثالث مع تنميط، والاستثناء غير متاح."} },
-      { code:"EU AI ACT · ART. 19", sev:"min", stat:"prog", due:7, own:{en:"Platform team", ar:"فريق المنصة"},
-        t:{en:"Log retention is 30 days on s3://prod-logs, below the six-month floor.",
-           ar:"مدة الاحتفاظ بالسجلات 30 يوما على s3://prod-logs، دون الحد الأدنى بستة أشهر."} },
-      { code:"ISO 42001 · CL. 7.3", sev:"min", stat:"prog", due:30, own:{en:"GRC office", ar:"مكتب الحوكمة"},
-        t:{en:"Control-owner awareness does not match observed system state.",
-           ar:"وعي مالك الضابط لا يطابق حالة النظام المرصودة."} },
-      { code:"EU AI ACT · ART. 10(2)(f)", sev:"min", stat:"open", due:45, own:{en:"ML engineering", ar:"هندسة التعلم الآلي"},
-        t:{en:"No documented bias examination of the training data.",
-           ar:"لا فحص موثقا للتحيز في بيانات التدريب."} },
-      { code:"ISO 23894 · CL. 6.1", sev:"min", stat:"open", due:45, own:{en:"GRC office", ar:"مكتب الحوكمة"},
-        t:{en:"Risk register review cadence is not evidenced across the lifecycle.",
-           ar:"لا دليل على وتيرة مراجعة سجل المخاطر عبر دورة الحياة."} },
-      { code:"EU AI ACT · ART. 72", sev:"min", stat:"open", due:60, own:{en:"GRC office", ar:"مكتب الحوكمة"},
-        t:{en:"No post-market monitoring plan proportionate to a high-risk system.",
-           ar:"لا خطة مراقبة بعد الطرح تتناسب مع نظام عالي المخاطر."} },
-      { code:"ISO 42001 · A.10.2", sev:"min", stat:"open", due:60, own:{en:"Legal counsel", ar:"المستشار القانوني"},
-        t:{en:"Supplier agreements carry no AI-specific obligations or audit rights.",
-           ar:"اتفاقيات المورّدين لا تتضمن التزامات خاصة بالذكاء الاصطناعي أو حقوق تدقيق."} },
-      { code:"EU AI ACT · ART. 27", sev:"min", stat:"open", due:45, own:{en:"Legal counsel", ar:"المستشار القانوني"},
-        t:{en:"No fundamental rights impact assessment recorded before first use.",
-           ar:"لا تقييم أثر على الحقوق الأساسية مسجلا قبل أول استخدام."} },
-      { code:"ISO 42001 · CL. 7.2", sev:"obs", stat:"open", due:30, own:{en:"People ops", ar:"شؤون الموظفين"},
-        t:{en:"Operator competence is not evidenced; no training records for recruiters.",
-           ar:"كفاءة المشغلين غير مدعومة بأدلة؛ لا سجلات تدريب للمسؤولين عن التوظيف."} }
-    ];
-
-    var REM = [
-      { n:1, eff:"s", unlocks:8,  t:{en:"Extend the s3://prod-logs lifecycle rule to at least six months.",
-                                     ar:"مدّد قاعدة دورة الحياة على s3://prod-logs إلى ستة أشهر على الأقل."} },
-      { n:2, eff:"s", unlocks:11, t:{en:"Revoke or re-scope the 3 non-engineering principals on prod-models.",
-                                     ar:"ألغِ أو أعد تحديد صلاحيات الجهات الثلاث من خارج الهندسة على prod-models."} },
-      { n:3, eff:"m", unlocks:9,  t:{en:"Stand up the internal audit cycle and run the first audit.",
-                                     ar:"فعّل دورة التدقيق الداخلي ونفّذ التدقيق الأول."} },
-      { n:4, eff:"m", unlocks:21, t:{en:"Run and document the Article 10 bias examination.",
-                                     ar:"نفّذ فحص التحيز بموجب المادة 10 ووثّقه."} },
-      { n:5, eff:"m", unlocks:11, t:{en:"Complete the fundamental rights impact assessment before the next deployment.",
-                                     ar:"أكمل تقييم الأثر على الحقوق الأساسية قبل النشر التالي."} }
-    ];
+    /* ---------- data: real, loaded from GET /engagements/{id}/report below.
+       Never a hardcoded fixture -- an engagement with no findings shows 0, not a
+       fabricated register. ---------- */
+    var FINDS = [];
+    var REAL = null;
+    function esc(s){
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+      });
+    }
 
     /* ---------- language ---------- */
     var lang = "en";
@@ -1465,22 +1426,29 @@ function initGap(){
       try{ localStorage.setItem("tahara-theme", n); }catch(e){}
     });
 
-    /* ---------- register ---------- */
+    /* ---------- register: real fields only (severity, control_id, description,
+       source, status) -- no owner/due-date, since the engine does not track
+       either. ---------- */
     var filter = "all";
     function renderRows(){
-      var d = T[lang];
       var box = document.getElementById("gpRows");
-      box.innerHTML = FINDS.filter(function(f){ return filter === "all" || f.sev === filter; })
-        .map(function(f){
-          return '<div class="frow">' +
-            '<span class="sev ' + f.sev + '">' + d.sev[f.sev] + '</span>' +
-            '<span class="fc2"><span class="code keep">' + f.code + '</span>' +
-            '<div class="txt">' + f.t[lang] + '</div></span>' +
-            '<span class="own">' + f.own[lang] + '</span>' +
-            '<span class="due keep">' + (f.due ? d.days(f.due) : d.dash) + '</span>' +
-            '<span class="stat ' + f.stat + '">' + d.stat[f.stat] + '</span>' +
+      var rows = FINDS.filter(function(f){ return filter === "all" || f.severity === filter; });
+      if (!rows.length){
+        box.innerHTML = '<div class="frow" style="opacity:.6;padding:14px 4px">' +
+          (FINDS.length ? 'No findings at this severity.' : 'No findings on this real engagement’s register.') +
           '</div>';
-        }).join("");
+        return;
+      }
+      box.innerHTML = rows.map(function(f){
+        return '<div class="frow">' +
+          '<span class="sev ' + f.severity + '">' + f.severity.toUpperCase() + '</span>' +
+          '<span class="fc2"><span class="code keep">' + esc(f.control_id || '—') + '</span>' +
+          '<div class="txt">' + esc(f.description) + '</div></span>' +
+          '<span class="own">' + esc(f.source) + '</span>' +
+          '<span class="due keep">' + esc(f.created_at ? f.created_at.slice(0, 10) : '—') + '</span>' +
+          '<span class="stat ' + f.status + '">' + esc(f.status.replace('_', ' ').toUpperCase()) + '</span>' +
+        '</div>';
+      }).join("");
     }
     document.getElementById("gpFilters").addEventListener("click", function(e){
       var b = e.target.closest(".flt"); if(!b) return;
@@ -1489,19 +1457,27 @@ function initGap(){
       renderRows();
     });
 
-    /* ---------- remediation ---------- */
+    /* ---------- rail: real open findings, severity-sorted. No fabricated
+       effort/impact estimate -- the engine does not compute either. ---------- */
     function renderRem(){
-      var d = T[lang];
-      document.getElementById("gpRem").innerHTML = REM.map(function(r){
-        return '<div class="ri"><span class="rk keep">' + r.n + '</span>' +
-          '<span><span class="rt">' + r.t[lang] + '</span>' +
-          '<span class="rm"><span class="eff ' + r.eff + '">' + (r.eff === "s" ? d.effS : d.effM) + '</span>' +
-          '<span class="imp">' + d.unlocks(r.unlocks) + '</span></span></span></div>';
+      var order = { critical:0, major:1, minor:2 };
+      var open = FINDS.filter(function(f){ return f.status === "open"; })
+                       .sort(function(a, b){ return (order[a.severity] || 9) - (order[b.severity] || 9); });
+      var box = document.getElementById("gpRem");
+      if (!open.length){
+        box.innerHTML = '<div class="ri" style="opacity:.6">No open findings.</div>';
+        return;
+      }
+      box.innerHTML = open.slice(0, 6).map(function(f, i){
+        return '<div class="ri"><span class="rk keep">' + (i + 1) + '</span>' +
+          '<span><span class="rt">' + esc(f.description) + '</span>' +
+          '<span class="rm"><span class="eff ' + f.severity + '">' + f.severity.toUpperCase() + '</span></span></span></div>';
       }).join("");
     }
 
     /* ---------- counters, bars, reveal ---------- */
     function countUp(el, to, ms){
+      if (!el) return;
       if(RM){ el.textContent = to; return; }
       var t0 = performance.now();
       (function tick(now){
@@ -1512,15 +1488,15 @@ function initGap(){
     }
     var fired = false;
     function fire(){
-      if(fired) return; fired = true;
-      countUp(document.getElementById("gpPct"), 90, 1200);
-      countUp(document.getElementById("gpMapped"), 168, 1200);
-      countUp(document.getElementById("gpFinds"), 11, 900);
-      countUp(document.getElementById("gpLeft"), 19, 900);
+      if(fired || !REAL) return; fired = true;
+      countUp(document.getElementById("gpPct"), REAL.pct, 1200);
+      countUp(document.getElementById("gpMapped"), REAL.mapped, 1200);
+      countUp(document.getElementById("gpFinds"), REAL.findingsTotal, 900);
+      countUp(document.getElementById("gpLeft"), REAL.stillNeeded, 900);
       root.querySelectorAll(".fp [data-n]").forEach(function(el){ countUp(el, +el.getAttribute("data-n"), 1200); });
       setTimeout(function(){
-        document.getElementById("gpRing").style.strokeDashoffset = String(239 * (1 - .9));
-        document.getElementById("gpMapBar").style.width = (168/187*100) + "%";
+        document.getElementById("gpRing").style.strokeDashoffset = String(239 * (1 - REAL.pct / 100));
+        document.getElementById("gpMapBar").style.width = REAL.pct + "%";
         root.querySelectorAll("[data-w]").forEach(function(el){ el.style.width = el.getAttribute("data-w") + "%"; });
       }, RM ? 0 : 150);
     }
@@ -1534,6 +1510,109 @@ function initGap(){
     }, { threshold:.15 });
     root.querySelectorAll(".rv").forEach(function(el){ io.observe(el); });
     setTimeout(fire, RM ? 0 : 700);
+
+    /* ---------- real data load: GET /engagements/{id}/report. The id comes from
+       the URL first (?eid=..., set by finish()'s "View gap assessment" link) and
+       localStorage second -- storage alone can fail to carry over (a fresh tab, a
+       private window, storage cleared between visits), which is exactly the "no
+       data despite a completed assessment" symptom this two-source lookup fixes.
+       Still no id, or the fetch fails: an honest empty/error state, never a
+       fabricated fallback report. ---------- */
+    (async function loadReal(){
+      var eid = null;
+      try{ eid = new URLSearchParams(location.search).get("eid"); }catch(e){}
+      if (!eid){ try{ eid = localStorage.getItem("tahara-last-engagement"); }catch(e){} }
+      else { try{ localStorage.setItem("tahara-last-engagement", eid); }catch(e){} }
+      if (!eid){
+        document.getElementById("gpK1s").textContent = "No completed assessment yet on this browser. Run one from the assessment chatbot, then come back here.";
+        document.getElementById("gpCovSub").textContent = "NO REAL ENGAGEMENT YET";
+        document.getElementById("gpCov").innerHTML = '<div class="cc rv in" style="opacity:.6">Run a real assessment from <a href="/assessment">/assessment</a> first — this page shows its real report, it does not fabricate one.</div>';
+        document.getElementById("gpRegSub").textContent = "NO REAL ENGAGEMENT YET";
+        document.getElementById("gpRemT").textContent = "OPEN FINDINGS";
+        renderRows(); renderRem();
+        REAL = { pct: 0, mapped: 0, findingsTotal: 0, stillNeeded: 0 };
+        fire();
+        return;
+      }
+      try{
+        var rpt = await getReport(eid);
+        var s = rpt.summary, pc = s.profile_coverage;
+        FINDS = ((rpt.findings && rpt.findings.items) || []).map(function(f){
+          return { severity: f.severity, description: f.description, control_id: f.control_id, source: f.source, status: f.status, created_at: f.created_at };
+        });
+
+        document.getElementById("gpK1s").textContent = "Share of the " + pc.framework_fields_total + " fields " + rpt.pinned.framework_name + " needs that are established and evidenced, from a real engagement (GET /engagements/" + eid + "/report).";
+        document.getElementById("gpMappedDenom").textContent = " / " + pc.framework_fields_total;
+        document.getElementById("gpK2s").textContent = pc.established + " fields established, " + pc.still_needed + " still needed, " + pc.pruned_as_irrelevant + " pruned as not relevant to this system.";
+
+        var sevCounts = { critical: 0, major: 0, minor: 0 };
+        FINDS.forEach(function(f){ if (sevCounts[f.severity] != null) sevCounts[f.severity]++; });
+        document.getElementById("gpK3c").textContent = (sevCounts.critical || sevCounts.major)
+          ? (sevCounts.critical + sevCounts.major) + " CRITICAL/MAJOR"
+          : "NO MAJOR OR CRITICAL FINDINGS";
+        document.getElementById("gpK3s").textContent = rpt.findings.total
+          ? rpt.findings.open + " still open of " + rpt.findings.total + " on record."
+          : "This real engagement has no findings on its register.";
+        document.getElementById("gpK4c").textContent = pc.still_needed ? "BLOCKS A FINAL REPORT" : "PROFILE COMPLETE";
+        document.getElementById("gpK4s").textContent = pc.still_needed
+          ? pc.still_needed + " fields still need an answer before the report can go FINAL."
+          : "Every field this framework needs has an answer. Report status: " + rpt.status + ".";
+
+        var pct = pc.percent_complete;
+        document.getElementById("gpCov").innerHTML =
+          '<div class="cc rv in">' +
+            '<div class="ch"><span class="fn keep">' + esc(rpt.pinned.framework_name) + '</span>' +
+            '<span class="fc keep">' + pc.established + ' / ' + pc.framework_fields_total + '</span></div>' +
+            '<div class="fp"><span data-n="' + pct + '">0</span><i>%</i></div>' +
+            '<div class="bar"><i data-w="' + pct + '"></i></div>' +
+            '<div class="cs">FIELDS ESTABLISHED</div>' +
+          '</div>';
+        document.getElementById("gpCovSub").textContent = "REAL · ENGAGEMENT " + eid;
+
+        document.getElementById("gpRegSub").textContent = rpt.findings.total + " FINDINGS · REAL, FROM THIS ENGAGEMENT'S REPORT";
+        document.getElementById("gpCntAll").textContent = FINDS.length;
+        document.getElementById("gpCntCritical").textContent = sevCounts.critical;
+        document.getElementById("gpCntMajor").textContent = sevCounts.major;
+        document.getElementById("gpCntMinor").textContent = sevCounts.minor;
+        document.getElementById("gpRemT").textContent = "OPEN FINDINGS, BY SEVERITY";
+        renderRows();
+        renderRem();
+
+        var facts = Object.values(rpt.profile_facts || {});
+        var provCounts = { document: 0, discovery: 0, interview: 0 };
+        facts.forEach(function(f){
+          if (f.source_type === "document") provCounts.document++;
+          else if (f.source_type === "discovery" || f.source_type === "observed") provCounts.discovery++;
+          else provCounts.interview++;
+        });
+        var totalFacts = facts.length + pc.still_needed || 1;
+        document.getElementById("gpProv1").textContent = provCounts.document;
+        document.getElementById("gpProv2").textContent = provCounts.discovery;
+        document.getElementById("gpProv3").textContent = provCounts.interview;
+        document.getElementById("gpProv4").textContent = pc.still_needed;
+        var bar = document.getElementById("gpProvBar");
+        if (bar && bar.children.length === 4){
+          bar.children[0].setAttribute("data-w", (provCounts.document / totalFacts * 100).toFixed(1));
+          bar.children[1].setAttribute("data-w", (provCounts.discovery / totalFacts * 100).toFixed(1));
+          bar.children[2].setAttribute("data-w", (provCounts.interview / totalFacts * 100).toFixed(1));
+          bar.children[3].setAttribute("data-w", (pc.still_needed / totalFacts * 100).toFixed(1));
+        }
+
+        document.getElementById("gpColStatus").innerHTML = "<i></i><span>" + esc(rpt.status) + "</span>";
+        document.getElementById("gpColWatch").textContent = (rpt.subject.organisation || "—") + " · " + (rpt.subject.system || "—");
+        document.getElementById("gpColFramework").textContent = rpt.pinned.framework_name;
+        document.getElementById("gpColReportStatus").textContent = rpt.status_note || rpt.status;
+
+        var reportLink = document.getElementById("gpReportLink");
+        if (reportLink) reportLink.href = "/report?eid=" + encodeURIComponent(eid);
+
+        REAL = { pct: pct, mapped: pc.established, findingsTotal: rpt.findings.total, stillNeeded: pc.still_needed };
+        fire();
+      }catch(err){
+        document.getElementById("gpK1s").textContent = "Real error fetching this engagement's report: " + err.message;
+        document.getElementById("gpCovSub").textContent = "BACKEND UNREACHABLE";
+      }
+    })();
 
     applyLang();
 

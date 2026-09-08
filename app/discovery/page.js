@@ -53,7 +53,7 @@ const MARKUP = `
       </div>
       <div class="hub-card hc2" style="--hd:.2s">
         <span class="hc-ic" style="background:var(--green-w);color:var(--green)"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 20 7v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V7l8-3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2.2 2.2L15.5 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        <div><p class="hc-t" data-i18n="l2">Live runtime posture</p><p class="hc-s">PROWLER &middot; KUBESCAPE</p></div>
+        <div><p class="hc-t" data-i18n="l2">Live runtime posture</p><p class="hc-s">KUBESCAPE &middot; PROWLER (n/a)</p></div>
       </div>
 
       <div class="hub-center" style="--hd:0s">
@@ -67,16 +67,17 @@ const MARKUP = `
       </div>
       <div class="hub-card hc4" style="--hd:.4s">
         <span class="hc-ic" style="background:var(--sky-w);color:var(--sky)"><svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="7" r="2.4" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="7" r="2.4" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="18" r="2.4" stroke="currentColor" stroke-width="1.6"/><path d="M7.9 8.6 10.6 15.8M16.1 8.6 13.4 15.8M8.4 7h7.2" stroke="currentColor" stroke-width="1.6"/></svg></span>
-        <div><p class="hc-t" data-i18n="l4">Relationships and identity</p><p class="hc-s">OPENCSPM</p></div>
+        <div><p class="hc-t" data-i18n="l4">Relationships and identity</p><p class="hc-s">OPENCSPM (n/a)</p></div>
       </div>
     </div>
 
     <div class="dh2-stats">
-      <span class="statpill" style="--hd:.15s"><em data-i18n="kTools">Tools wrapped</em><b class="kn" data-to="6">0</b></span>
+      <span class="statpill" style="--hd:.15s"><em data-i18n="kTools">Tools live</em><b class="kn" id="statLiveTools" data-to="0">0</b></span>
       <span class="statpill" style="--hd:.25s"><em data-i18n="kLayers">Evidence layers</em><b class="kn" data-to="4">0</b></span>
-      <span class="statpill" style="--hd:.35s"><em data-i18n="kFind">Findings, last cycle</em><b class="kn" data-to="281">0</b></span>
-      <span class="statpill" style="--hd:.45s"><em data-i18n="kProbes">Probes per cycle</em><b class="kn" data-to="8412">0</b></span>
+      <span class="statpill" style="--hd:.35s"><em data-i18n="kFind">Findings, this real scan</em><b class="kn" id="statFindings" data-to="0">0</b></span>
+      <span class="statpill" style="--hd:.45s"><em data-i18n="kUnavail">Tools not available</em><b class="kn" id="statUnavail" data-to="0">0</b></span>
     </div>
+    <p id="liveScanNote" style="margin-top:10px;font:12px/1.4 monospace;opacity:.7"></p>
   </section>
 
   <section class="tele" data-rv>
@@ -121,13 +122,12 @@ const MARKUP = `
         <p class="tpane-h" data-i18n="findT">Findings surfaced per tool, last cycle</p>
         <span class="tag" data-i18n="cadTag">24H CADENCE</span>
       </div>
-      <div class="bchart">
-        <div class="bcol"><span class="bv">142</span><span class="bbar" style="--h:100%;--c:var(--acc)"></span><span class="bl">Checkov</span></div>
-        <div class="bcol"><span class="bv">38</span><span class="bbar" style="--h:27%;--c:var(--acc);--d:.08s"></span><span class="bl">KICS</span></div>
-        <div class="bcol"><span class="bv">61</span><span class="bbar" style="--h:43%;--c:var(--green);--d:.16s"></span><span class="bl">Prowler</span></div>
-        <div class="bcol"><span class="bv">27</span><span class="bbar" style="--h:19%;--c:var(--green);--d:.24s"></span><span class="bl">Kubescape</span></div>
-        <div class="bcol"><span class="bv">9</span><span class="bbar" style="--h:7%;--c:var(--amber);--d:.32s"></span><span class="bl">ai-bom</span></div>
-        <div class="bcol"><span class="bv">4</span><span class="bbar" style="--h:4%;--c:var(--sky);--d:.4s"></span><span class="bl">OpenCSPM</span></div>
+      <div class="bchart" id="realBchart">
+        <div class="bcol"><span class="bv" id="bv-checkov">&hellip;</span><span class="bbar" id="bb-checkov" style="--h:0%;--c:var(--acc)"></span><span class="bl">Checkov</span></div>
+        <div class="bcol"><span class="bv" id="bv-kics">&hellip;</span><span class="bbar" id="bb-kics" style="--h:0%;--c:var(--acc);--d:.08s"></span><span class="bl">KICS</span></div>
+        <div class="bcol"><span class="bv" id="bv-kubescape">&hellip;</span><span class="bbar" id="bb-kubescape" style="--h:0%;--c:var(--green);--d:.16s"></span><span class="bl">Kubescape</span></div>
+        <div class="bcol"><span class="bv" id="bv-ai-bom">&hellip;</span><span class="bbar" id="bb-ai-bom" style="--h:0%;--c:var(--amber);--d:.24s"></span><span class="bl">ai-bom</span></div>
+        <div class="bcol"><span class="bv" id="bv-mlflow">&hellip;</span><span class="bbar" id="bb-mlflow" style="--h:0%;--c:var(--sky);--d:.32s"></span><span class="bl">MLflow</span></div>
       </div>
     </div>
   </section>
@@ -283,7 +283,7 @@ const MARKUP = `
     </div>
     <div class="cat" style="--hd:.15s">
       <div class="cat-h"><span class="hc-ic" style="background:var(--green-w);color:var(--green)"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 20 7v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V7l8-3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2.2 2.2L15.5 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h3 data-i18n="c2T">Live runtime posture</h3></div>
-      <div class="cat-chips"><span>PROWLER &middot; APACHE 2.0</span><span>KUBESCAPE &middot; CNCF</span></div>
+      <div class="cat-chips"><span style="opacity:.6" title="No reachable AWS credential to scan against.">PROWLER &middot; NOT AVAILABLE</span><span>KUBESCAPE &middot; CNCF</span></div>
       <div class="kv"><span class="k" data-i18n="c2k1">Scope</span><span class="v">AWS, Azure, GCP + K8s</span></div>
       <div class="kv"><span class="k" data-i18n="c2k2">Detects</span><span class="v" data-i18n="c2v2">Drift from declared IaC</span></div>
       <div class="kv"><span class="k" data-i18n="c2k3">Cadence</span><span class="v" data-i18n="c2v3">Continuous, in-cluster</span></div>
@@ -297,7 +297,7 @@ const MARKUP = `
     </div>
     <div class="cat" style="--hd:.35s">
       <div class="cat-h"><span class="hc-ic" style="background:var(--sky-w);color:var(--sky)"><svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="7" r="2.4" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="7" r="2.4" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="18" r="2.4" stroke="currentColor" stroke-width="1.6"/><path d="M7.9 8.6 10.6 15.8M16.1 8.6 13.4 15.8M8.4 7h7.2" stroke="currentColor" stroke-width="1.6"/></svg></span><h3 data-i18n="c4T">Relationships and identity</h3></div>
-      <div class="cat-chips"><span>OPENCSPM &middot; OPEN SOURCE</span></div>
+      <div class="cat-chips"><span style="opacity:.6" title="Not a real installable package under this name.">OPENCSPM &middot; NOT AVAILABLE</span></div>
       <div class="kv"><span class="k" data-i18n="c4k1">Model</span><span class="v" data-i18n="c4v1">Graph, not a flat table</span></div>
       <div class="kv"><span class="k" data-i18n="c4k2">Answers</span><span class="v" data-i18n="c4v2">Who can reach what, and how</span></div>
       <div class="kv"><span class="k" data-i18n="c4k3">Feeds</span><span class="v" data-i18n="c4v3">The triangulation engine directly</span></div>

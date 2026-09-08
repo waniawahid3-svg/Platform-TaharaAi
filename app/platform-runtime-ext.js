@@ -5,6 +5,7 @@
    markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
 import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport } from "@/lib/govApi";
+import { getDiscoveryHealth, scan as discoveryScan } from "@/lib/discoveryApi";
 
 export function run(which){
 
@@ -538,7 +539,7 @@ function initDiscovery(){
         covT:'Coverage by evidence layer', toolsLbl:'TOOLS',
         dashT:'Discovery telemetry',
         dashSub:'Six wrapped tools across four evidence layers, running on a 24 hour cadence.',
-        kTools:'Tools wrapped', kLayers:'Evidence layers', kFind:'Findings, last cycle', kProbes:'Probes per cycle',
+        kTools:'Tools live', kLayers:'Evidence layers', kFind:'Findings, this real scan', kUnavail:'Tools not available',
         l1:'Infrastructure and config', l2:'Live runtime posture', l3:'AI and model inventory', l4:'Relationships and identity',
         scanT:'Scan activity, last 24 hours', nowLbl:'NOW',
         findT:'Findings surfaced per tool, last cycle', cadTag:'24H CADENCE',
@@ -609,6 +610,65 @@ function initDiscovery(){
       b.addEventListener('click', function(){ applyLang(b.getAttribute('data-lang')); });
     });
     try{ var l0 = localStorage.getItem('tahara-lang'); if (l0) applyLang(l0); }catch(e){}
+
+    /* real discovery data: one live health check plus one real scan per tool that has
+       a known-good local target in this deployment. Never fabricates a number for a
+       tool it didn't actually run -- a tool with no configured target shows "n/a", not
+       a made-up count. */
+    (async function loadRealDiscovery(){
+      var note = document.getElementById('liveScanNote');
+      var bars = {
+        checkov:  { target: '/app/terraform' },
+        kics:     { target: '/app/terraform' },
+        'ai-bom': { target: '/app/ccae' },
+        mlflow:   { target: 'file:///app/mlruns' },
+        kubescape:{ target: null } // no k8s manifest/cluster configured in this deployment
+      };
+      function setBar(tool, count, ok){
+        var v = document.getElementById('bv-' + tool);
+        var b = document.getElementById('bb-' + tool);
+        if (!v || !b) return;
+        v.textContent = ok ? String(count) : 'n/a';
+        var pct = ok ? Math.min(100, count * 8 + (count > 0 ? 12 : 2)) : 0;
+        b.style.setProperty('--h', pct + '%');
+      }
+      try{
+        var health = await getDiscoveryHealth();
+        var liveTools = health.tools || [];
+        var liveEl = document.getElementById('statLiveTools');
+        if (liveEl) liveEl.setAttribute('data-to', String(liveTools.length));
+        var unEl = document.getElementById('statUnavail');
+        if (unEl) unEl.setAttribute('data-to', '2');
+
+        var totalFindings = 0, ranAny = false;
+        for (var i = 0; i < liveTools.length; i++){
+          var t = liveTools[i];
+          var cfg = bars[t];
+          if (!cfg || !cfg.target){ setBar(t, 0, false); continue; }
+          try{
+            var result = await discoveryScan(t, cfg.target);
+            var n = (result.findings || []).length;
+            totalFindings += n;
+            ranAny = true;
+            setBar(t, n, true);
+          }catch(scanErr){
+            setBar(t, 0, false);
+          }
+        }
+        var findEl = document.getElementById('statFindings');
+        if (findEl) findEl.setAttribute('data-to', String(totalFindings));
+        if (note) note.textContent = ranAny
+          ? ('LIVE: ' + liveTools.length + ' real tools reachable, ' + totalFindings + ' findings from a real scan just now. Prowler and OpenCSPM are not wired in (see category cards below).')
+          : ('LIVE: ' + liveTools.length + ' real tools reachable, but no scan target is configured for them in this deployment.');
+        document.querySelectorAll('.kn[data-to]').forEach(function(el){
+          if (el.closest('.dh2-stats') && el.offsetParent !== null) animFig(el);
+        });
+      }catch(healthErr){
+        if (note) note.textContent = 'Discovery backend unreachable right now -- showing no live data (not fabricating a number).';
+        var liveEl2 = document.getElementById('statLiveTools');
+        if (liveEl2) liveEl2.textContent = '0';
+      }
+    })();
 
     /* donut, built from the same data as the legend */
     (function(){

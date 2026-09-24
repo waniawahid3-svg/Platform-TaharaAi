@@ -826,7 +826,7 @@ function initChat(){
         findEmpty:"Findings appear here as the engine detects deltas between what you say, what you wrote, and what your system is doing.",
         ft1:"TAHARA AI · CONTINUOUS ASSURANCE PLATFORM", ft2:"SAFE · ETHICAL · TRANSPARENT",
         auditor:"ASSURANCE AUDITOR", you:"YOU",
-        xpTitle:"Reading your documents", xpPreparing:"Preparing your documents…",
+        xpTitle:"Reading your documents", xpVerifyTitle:"Double-checking what was found", xpPreparing:"Preparing your documents…",
         xpChecks:"{done} of {total} checks", xpNow:"NOW CHECKING",
         xpLeft:"about {t} left", xpEstimating:"working out the time left…", xpUnderMin:"under a minute left",
         xpMin:"min", xpHr:"h",
@@ -845,7 +845,7 @@ function initChat(){
         findEmpty:"تظهر الملاحظات هنا كلما رصد المحرك فارقا بين ما تقوله، وما كتبته، وما يفعله نظامك فعليا.",
         ft1:"تهارا · منصة الضمان المستمر", ft2:"آمن · أخلاقي · شفاف",
         auditor:"مدقق الضمان", you:"أنت",
-        xpTitle:"جارٍ قراءة مستنداتك", xpPreparing:"جارٍ تجهيز مستنداتك…",
+        xpTitle:"جارٍ قراءة مستنداتك", xpVerifyTitle:"جارٍ التحقق مما تم العثور عليه", xpPreparing:"جارٍ تجهيز مستنداتك…",
         xpChecks:"{done} من أصل {total} فحصًا", xpNow:"قيد الفحص الآن",
         xpLeft:"المتبقي نحو {t}", xpEstimating:"جارٍ تقدير الوقت المتبقي…", xpUnderMin:"المتبقي أقل من دقيقة",
         xpMin:"د", xpHr:"س",
@@ -980,7 +980,9 @@ function initChat(){
       // What the last paint was made of. It includes the language: the static text (title, note,
       // labels) is only written on a full paint, so a language switch mid-run must trigger one --
       // otherwise the counts turn Arabic while the title and note stay English.
-      var mode = (reading ? "reading" : "extracting") + ":" + lang;
+      var verifying = p.phase === "verifying" && !!p.total;
+      var title = verifying ? d.xpVerifyTitle : d.xpTitle;
+      var mode = (reading ? "reading" : (verifying ? "verifying" : "extracting")) + ":" + lang;
 
       // Same mode and language as the last paint: update in place, so the bar's width transition
       // animates rather than a fresh element snapping to its new width every poll.
@@ -1003,8 +1005,8 @@ function initChat(){
       b.setAttribute("data-xp", mode); b.style.padding = "";
       b.innerHTML =
         '<div class="xp">' +
-          '<div class="xp-h"><b>' + esc(d.xpTitle) + '</b>' + (reading ? '' : '<span class="xp-pct">' + pct + '%</span>') + '</div>' +
-          '<div class="xp-bar' + (reading ? ' ind' : '') + '" role="progressbar" aria-label="' + esc(d.xpTitle) + '"' +
+          '<div class="xp-h"><b>' + esc(title) + '</b>' + (reading ? '' : '<span class="xp-pct">' + pct + '%</span>') + '</div>' +
+          '<div class="xp-bar' + (reading ? ' ind' : '') + '" role="progressbar" aria-label="' + esc(title) + '"' +
             (reading ? '' : ' aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-valuetext="' + esc(checks) + '"') +
             '><i' + (reading ? '' : ' style="width:' + pct + '%"') + '></i></div>' +
           '<div class="xp-m"><span>' + esc(reading ? d.xpPreparing : checks) + '</span>' +

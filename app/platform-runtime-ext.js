@@ -825,7 +825,12 @@ function initChat(){
         kColl:"Collector", kLive:"● LIVE", kObs:"Last observed", kProbeL:"Probes run",
         findEmpty:"Findings appear here as the engine detects deltas between what you say, what you wrote, and what your system is doing.",
         ft1:"TAHARA AI · CONTINUOUS ASSURANCE PLATFORM", ft2:"SAFE · ETHICAL · TRANSPARENT",
-        auditor:"ASSURANCE AUDITOR", you:"YOU"
+        auditor:"ASSURANCE AUDITOR", you:"YOU",
+        xpTitle:"Reading your documents", xpPreparing:"Preparing your documents…",
+        xpChecks:"{done} of {total} checks", xpNow:"NOW CHECKING",
+        xpLeft:"about {t} left", xpEstimating:"working out the time left…", xpUnderMin:"under a minute left",
+        xpMin:"min", xpHr:"h",
+        xpNote:"This runs on your own computer, so it takes a while. You can leave this page open, or come back to it later."
       },
       ar:{
         n1:"نظرة عامة", n2:"الحوكمة", n3:"الأُطر", n4:"الاستكشاف", n5:"الاختبار العدائي", n6:"حواجز الحماية",
@@ -839,7 +844,12 @@ function initChat(){
         kColl:"المُجمّع", kLive:"● مباشر", kObs:"آخر رصد", kProbeL:"الفحوصات",
         findEmpty:"تظهر الملاحظات هنا كلما رصد المحرك فارقا بين ما تقوله، وما كتبته، وما يفعله نظامك فعليا.",
         ft1:"تهارا · منصة الضمان المستمر", ft2:"آمن · أخلاقي · شفاف",
-        auditor:"مدقق الضمان", you:"أنت"
+        auditor:"مدقق الضمان", you:"أنت",
+        xpTitle:"جارٍ قراءة مستنداتك", xpPreparing:"جارٍ تجهيز مستنداتك…",
+        xpChecks:"{done} من أصل {total} فحصًا", xpNow:"قيد الفحص الآن",
+        xpLeft:"المتبقي نحو {t}", xpEstimating:"جارٍ تقدير الوقت المتبقي…", xpUnderMin:"المتبقي أقل من دقيقة",
+        xpMin:"د", xpHr:"س",
+        xpNote:"تعمل هذه العملية على جهازك، لذا تستغرق بعض الوقت. يمكنك إبقاء هذه الصفحة مفتوحة أو العودة إليها لاحقًا."
       }
     };
     var lang = "en";
@@ -936,6 +946,74 @@ function initChat(){
       S.appendChild(d); scrollEnd();
     }
     function untype(){ var t = document.getElementById("typ"); if(t) t.remove(); }
+
+    /* Extraction progress. Reading a customer's documents is about half an hour of local-model
+       work, and for all of it the only signal used to be the typing dots -- nothing told "a third
+       of the way through" from "hung". The backend counts the fields it has to check and which one
+       it is on; while it runs, the dots are swapped for a panel showing exactly that. Every number
+       here comes from the backend's own status response: nothing is a timer or a guess, and the
+       time left is withheld (null) until the backend has enough timed fields to estimate one.
+       showProgress(null) puts the dots back, for a phase that has nothing to report. */
+    function fmtEta(s){
+      var d = T[lang];
+      if(s == null) return d.xpEstimating;
+      if(s < 60) return d.xpUnderMin;
+      var m = Math.round(s / 60);
+      var t = m < 90 ? (m + " " + d.xpMin) : (Math.floor(m / 60) + " " + d.xpHr + " " + (m % 60) + " " + d.xpMin);
+      return d.xpLeft.replace("{t}", t);
+    }
+    function showProgress(p){
+      var host = document.getElementById("typ");
+      var b = host && host.querySelector(".bubble");
+      if(!b) return;
+      var d = T[lang];
+      if(!p){
+        if(b.getAttribute("data-xp")){
+          b.removeAttribute("data-xp"); b.style.padding = "0";
+          b.innerHTML = '<div class="typing"><i></i><i></i><i></i></div>';
+        }
+        return;
+      }
+      var reading = p.phase === "reading" || !p.total;
+      var pct = Math.max(0, Math.min(100, p.percent || 0));
+      var checks = d.xpChecks.replace("{done}", p.done).replace("{total}", p.total);
+      // What the last paint was made of. It includes the language: the static text (title, note,
+      // labels) is only written on a full paint, so a language switch mid-run must trigger one --
+      // otherwise the counts turn Arabic while the title and note stay English.
+      var mode = (reading ? "reading" : "extracting") + ":" + lang;
+
+      // Same mode and language as the last paint: update in place, so the bar's width transition
+      // animates rather than a fresh element snapping to its new width every poll.
+      if(b.getAttribute("data-xp") === mode){
+        if(!reading){
+          b.querySelector(".xp-pct").textContent = pct + "%";
+          var bar = b.querySelector(".xp-bar");
+          bar.setAttribute("aria-valuenow", pct); bar.setAttribute("aria-valuetext", checks);
+          bar.firstChild.style.width = pct + "%";
+          var spans = b.querySelectorAll(".xp-m span");
+          spans[0].textContent = checks; spans[1].textContent = fmtEta(p.eta_s);
+        }
+        var now = b.querySelector(".xp-now");
+        now.hidden = !p.current_label;
+        now.querySelector("span").textContent = p.current_label || "";
+        return;
+      }
+
+      var firstPaint = !b.getAttribute("data-xp");
+      b.setAttribute("data-xp", mode); b.style.padding = "";
+      b.innerHTML =
+        '<div class="xp">' +
+          '<div class="xp-h"><b>' + esc(d.xpTitle) + '</b>' + (reading ? '' : '<span class="xp-pct">' + pct + '%</span>') + '</div>' +
+          '<div class="xp-bar' + (reading ? ' ind' : '') + '" role="progressbar" aria-label="' + esc(d.xpTitle) + '"' +
+            (reading ? '' : ' aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-valuetext="' + esc(checks) + '"') +
+            '><i' + (reading ? '' : ' style="width:' + pct + '%"') + '></i></div>' +
+          '<div class="xp-m"><span>' + esc(reading ? d.xpPreparing : checks) + '</span>' +
+            (reading ? '' : '<span>' + esc(fmtEta(p.eta_s)) + '</span>') + '</div>' +
+          '<div class="xp-now"' + (p.current_label ? '' : ' hidden') + '><small>' + esc(d.xpNow) + '</small><span dir="auto">' + esc(p.current_label || "") + '</span></div>' +
+          '<div class="xp-note">' + esc(d.xpNote) + '</div>' +
+        '</div>';
+      if(firstPaint) scrollEnd();  // once -- not every poll, which would yank a reader back down
+    }
     function clearTimers(){ /* no scripted timers remain to clear */ }
 
     function esc(s){
@@ -1121,7 +1199,10 @@ function initChat(){
         // comes back "processing" immediately -- poll the same endpoint, same as
         // the upload flow above, until it actually finishes.
         while(data.documents_processing || data.status === "processing"){
-          await sleep(4000);
+          // Progress only exists while documents are being read; once they are done and the
+          // batch of questions is being prepared there is nothing to count, so the dots return.
+          showProgress(data.progress || null);
+          await sleep(3000);
           data = await getQuestions(eid, 6);
         }
         untype();
@@ -1248,10 +1329,12 @@ function initChat(){
         // until it actually finishes; no fixed timer, no assumed duration.
         await uploadDocuments(eid, files);
         var status;
-        do {
-          await sleep(4000);
+        while(true){
           status = await getDocumentsStatus(eid);
-        } while(status.status === "processing");
+          if(status.status !== "processing") break;
+          showProgress(status.progress || null);
+          await sleep(3000);
+        }
 
         untype();
 

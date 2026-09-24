@@ -126,7 +126,7 @@ const MARKUP = `
         <div class="sh" data-i="evGenH">2 · ISMS DOCUMENTS</div>
         <div class="evb">
           <p class="evp" data-i="evGenP">Generate the 11-document ISMS package (10 Word, 1 PowerPoint) from this interview and the latest evidence.</p>
-          <label class="evk"><input type="checkbox" id="gpMaster"><span data-i="evMaster">Include the 829-control determination (takes minutes)</span></label>
+          <label class="evk"><input type="checkbox" id="gpMaster"><span data-i="evMaster">Include the 789-control determination (takes minutes)</span></label>
           <div class="evr"><button class="btn-p" id="gpGen" type="button" data-i="evGen">Generate documents</button><span class="evm" id="gpGenMsg" role="status" aria-live="polite"></span></div>
           <div class="evbar" id="gpGenBar" hidden><i></i></div>
           <div id="gpFiles"></div>

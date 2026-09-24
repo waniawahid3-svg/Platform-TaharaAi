@@ -112,6 +112,28 @@ const MARKUP = `
     <div class="st rv"><h2 data-i="covT">Framework coverage</h2><span id="gpCovSub">REAL, FROM THE LATEST COMPLETED ENGAGEMENT</span></div>
     <div class="cov" id="gpCov"></div>
 
+    <!-- evidence + documents -->
+    <div class="st rv"><h2 data-i="evT">Evidence and documents</h2><span id="gpEvSub" data-i="evS">LIVE HOST EVIDENCE · ISMS DOCUMENT PACKAGE</span></div>
+    <div class="evx rv" id="gpEv">
+      <div class="card evc">
+        <div class="sh" data-i="evPullH">1 · LIVE EVIDENCE</div>
+        <div class="evb">
+          <p class="evp" data-i="evPullP">Scan the host with AIGRC-Collector. Facts it observes are added to this engagement; everything else it finds appears on the findings register.</p>
+          <div class="evr"><button class="btn-g" id="gpPull" type="button" data-i="evPull">Pull evidence</button><span class="evm" id="gpPullMsg" role="status" aria-live="polite"></span></div>
+        </div>
+      </div>
+      <div class="card evc">
+        <div class="sh" data-i="evGenH">2 · ISMS DOCUMENTS</div>
+        <div class="evb">
+          <p class="evp" data-i="evGenP">Generate the 11-document ISMS package (10 Word, 1 PowerPoint) from this interview and the latest evidence.</p>
+          <label class="evk"><input type="checkbox" id="gpMaster"><span data-i="evMaster">Include the 829-control determination (takes minutes)</span></label>
+          <div class="evr"><button class="btn-p" id="gpGen" type="button" data-i="evGen">Generate documents</button><span class="evm" id="gpGenMsg" role="status" aria-live="polite"></span></div>
+          <div class="evbar" id="gpGenBar" hidden><i></i></div>
+          <div id="gpFiles"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- register + rail -->
     <div class="st rv"><h2 data-i="regT">Findings register</h2><span id="gpRegSub">&hellip;</span></div>
     <div class="main">

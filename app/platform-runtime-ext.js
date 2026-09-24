@@ -4,7 +4,7 @@
    HTML build. Everything runs inside run(), so it executes on mount when the
    markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
-import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport } from "@/lib/govApi";
+import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl } from "@/lib/govApi";
 import { getDiscoveryHealth, scan as discoveryScan } from "@/lib/discoveryApi";
 
 export function run(which){
@@ -1440,7 +1440,16 @@ function initGap(){
         stat:{open:"OPEN",prog:"IN PROGRESS",final:"FINAL",watch:"MONITORING"},
         days:function(d){ return d + " days"; }, dash:"—",
         unlocks:function(n){ return "UNBLOCKS " + n + " REQUIREMENTS"; },
-        effS:"SMALL", effM:"MEDIUM"
+        effS:"SMALL", effM:"MEDIUM",
+        evT:"Evidence and documents", evS:"LIVE HOST EVIDENCE · ISMS DOCUMENT PACKAGE",
+        evPullH:"1 · LIVE EVIDENCE", evPullP:"Scan the host with AIGRC-Collector. Facts it observes are added to this engagement; everything else it finds appears on the findings register.",
+        evPull:"Pull evidence", evPulling:"Scanning…",
+        evGenH:"2 · ISMS DOCUMENTS", evGenP:"Generate the 11-document ISMS package (10 Word, 1 PowerPoint) from this interview and the latest evidence.",
+        evMaster:"Include the 829-control determination (takes minutes)", evGen:"Generate documents", evGenning:"Generating…",
+        evZip:"DOWNLOAD ALL (.ZIP)", evDl:"DOWNLOAD", evNoEng:"Complete an assessment first.",
+        evDone:function(n, t){ return n + " documents ready" + (t ? " · with live evidence" : " · no live evidence"); },
+        evPulled:function(o, f, n){ return n + " records · " + o + " became facts · " + f + " added to the register"; },
+        evFail:"Failed: "
       },
       ar:{
         n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
@@ -1464,7 +1473,16 @@ function initGap(){
         stat:{open:"مفتوحة",prog:"قيد المعالجة",final:"نهائي",watch:"مراقبة"},
         days:function(d){ return d + " يوما"; }, dash:"—",
         unlocks:function(n){ return "يفتح " + n + " متطلبا"; },
-        effS:"صغير", effM:"متوسط"
+        effS:"صغير", effM:"متوسط",
+        evT:"الأدلة والوثائق", evS:"أدلة المضيف المباشرة · حزمة وثائق نظام إدارة أمن المعلومات",
+        evPullH:"1 · الأدلة المباشرة", evPullP:"افحص المضيف عبر AIGRC-Collector. تُضاف الوقائع المرصودة إلى هذا التقييم، وتظهر بقية النتائج في سجل الملاحظات.",
+        evPull:"سحب الأدلة", evPulling:"جارٍ الفحص…",
+        evGenH:"2 · وثائق النظام", evGenP:"أنشئ حزمة وثائق النظام الـ11 (10 ملفات وورد وعرض تقديمي) من هذه المقابلة وأحدث الأدلة.",
+        evMaster:"تضمين تحديد الضوابط الـ829 (يستغرق دقائق)", evGen:"إنشاء الوثائق", evGenning:"جارٍ الإنشاء…",
+        evZip:"تنزيل الكل (ZIP)", evDl:"تنزيل", evNoEng:"أكمل تقييما أولا.",
+        evDone:function(n, t){ return n + " وثيقة جاهزة" + (t ? " · مع أدلة مباشرة" : " · بلا أدلة مباشرة"); },
+        evPulled:function(o, f, n){ return n + " سجلا · " + o + " أصبحت وقائع · " + f + " أُضيفت إلى السجل"; },
+        evFail:"فشل: "
       }
     };
 
@@ -1697,6 +1715,66 @@ function initGap(){
         document.getElementById("gpK1s").textContent = "Real error fetching this engagement's report: " + err.message;
         document.getElementById("gpCovSub").textContent = "BACKEND UNREACHABLE";
       }
+    })();
+
+    /* ---------- evidence + documents: pull, generate, download ---------- */
+    (function evidenceAndDocs(){
+      var eid = null;
+      try{ eid = new URLSearchParams(location.search).get("eid") || localStorage.getItem("tahara-last-engagement"); }catch(e){}
+      var pull = document.getElementById("gpPull"), gen = document.getElementById("gpGen");
+      var pullMsg = document.getElementById("gpPullMsg"), genMsg = document.getElementById("gpGenMsg");
+      var bar = document.getElementById("gpGenBar"), files = document.getElementById("gpFiles");
+      var master = document.getElementById("gpMaster");
+      var last = null, poll = null;
+      function say(el, txt, err){ el.textContent = txt || ""; el.classList.toggle("err", !!err); }
+      function paintFiles(m){
+        var d = T[lang];
+        files.innerHTML = m.files.map(function(f){
+          return '<div class="evf"><span class="n">' + esc(f.doc_id) + '</span><span class="t">' + esc(f.title) + '</span>' +
+            '<span class="z keep">' + esc(f.kind.toUpperCase()) + ' · ' + Math.max(1, Math.round(f.size / 1024)) + ' KB</span>' +
+            '<a href="' + esc(ismsFileUrl(eid, f.filename)) + '" download>' + esc(d.evDl) + '</a></div>';
+        }).join("") + '<div class="evf evz"><a href="' + esc(ismsZipUrl(eid)) + '" download>' + esc(d.evZip) + '</a></div>';
+      }
+      function paint(st){
+        var d = T[lang]; last = st;
+        if (st.status === "processing"){
+          gen.disabled = true; gen.textContent = d.evGenning; bar.hidden = false;
+          var pr = st.progress || {};
+          bar.firstElementChild.style.width = (pr.total ? pr.done / pr.total * 100 : 5) + "%";
+          say(genMsg, pr.current || "");
+        } else {
+          gen.disabled = false; gen.textContent = d.evGen; bar.hidden = true;
+          if (poll){ clearInterval(poll); poll = null; }
+          if (st.status === "error") say(genMsg, d.evFail + (st.error || ""), true);
+          else if (st.status === "done"){
+            say(genMsg, d.evDone(st.files.length, st.evidence_target)); paintFiles(st);
+          }
+        }
+      }
+      async function refresh(){
+        try{ paint(await getIsmsPackage(eid)); }catch(e){ say(genMsg, T[lang].evFail + e.message, true); }
+      }
+      function startPolling(){ if (!poll) poll = setInterval(refresh, 1500); }
+      if (!eid){ pull.disabled = gen.disabled = true; say(pullMsg, T[lang].evNoEng); return; }
+      pull.addEventListener("click", async function(){
+        pull.disabled = true; pull.textContent = T[lang].evPulling; say(pullMsg, "");
+        try{
+          var r = await pullEvidence(eid, "full");
+          if (r.error && !r.completed) say(pullMsg, T[lang].evFail + r.error, true);
+          else say(pullMsg, T[lang].evPulled((r.observed || []).length, r.findings_raised || 0, r.findings_total || 0));
+        }catch(e){ say(pullMsg, T[lang].evFail + e.message, true); }
+        pull.disabled = false; pull.textContent = T[lang].evPull;
+      });
+      gen.addEventListener("click", async function(){
+        gen.disabled = true; say(genMsg, "");
+        try{ await startIsmsPackage(eid, master.checked); startPolling(); await refresh(); }
+        catch(e){ gen.disabled = false; say(genMsg, T[lang].evFail + e.message, true); }
+      });
+      /* a language switch repaints the state-dependent labels (data-i covers the static ones) */
+      root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
+        b.addEventListener("click", function(){ if (last) paint(last); });
+      });
+      refresh().then(function(){ if (last && last.status === "processing") startPolling(); });
     })();
 
     applyLang();

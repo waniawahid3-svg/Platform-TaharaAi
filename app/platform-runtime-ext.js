@@ -1449,7 +1449,8 @@ function initGap(){
         evZip:"DOWNLOAD ALL (.ZIP)", evDl:"DOWNLOAD", evNoEng:"Complete an assessment first.",
         evDone:function(n, t){ return n + " documents ready" + (t ? " · with live evidence" : " · no live evidence"); },
         evPulled:function(o, f, n){ return n + " records · " + o + " became facts · " + f + " added to the register"; },
-        evFail:"Failed: "
+        evFail:"Failed: ",
+        evPartial:function(n, f, err){ return "Partial: " + n + " records pulled, " + f + " added to the register. " + err; }
       },
       ar:{
         n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
@@ -1482,7 +1483,8 @@ function initGap(){
         evZip:"تنزيل الكل (ZIP)", evDl:"تنزيل", evNoEng:"أكمل تقييما أولا.",
         evDone:function(n, t){ return n + " وثيقة جاهزة" + (t ? " · مع أدلة مباشرة" : " · بلا أدلة مباشرة"); },
         evPulled:function(o, f, n){ return n + " سجلا · " + o + " أصبحت وقائع · " + f + " أُضيفت إلى السجل"; },
-        evFail:"فشل: "
+        evFail:"فشل: ",
+        evPartial:function(n, f, err){ return "جزئي: سُحب " + n + " سجلا، وأُضيف " + f + " إلى السجل. " + err; }
       }
     };
 
@@ -1760,7 +1762,8 @@ function initGap(){
         pull.disabled = true; pull.textContent = T[lang].evPulling; say(pullMsg, "");
         try{
           var r = await pullEvidence(eid, "full");
-          if (r.error && !r.completed) say(pullMsg, T[lang].evFail + r.error, true);
+          if (r.error && !r.completed && !(r.findings_total > 0)) say(pullMsg, T[lang].evFail + r.error, true);
+          else if (r.error && !r.completed) say(pullMsg, T[lang].evPartial(r.findings_total || 0, r.findings_raised || 0, r.error), true);
           else say(pullMsg, T[lang].evPulled((r.observed || []).length, r.findings_raised || 0, r.findings_total || 0));
         }catch(e){ say(pullMsg, T[lang].evFail + e.message, true); }
         pull.disabled = false; pull.textContent = T[lang].evPull;

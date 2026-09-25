@@ -4,7 +4,7 @@
    HTML build. Everything runs inside run(), so it executes on mount when the
    markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
-import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl } from "@/lib/govApi";
+import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster } from "@/lib/govApi";
 import { getDiscoveryHealth, scan as discoveryScan } from "@/lib/discoveryApi";
 
 export function run(which){
@@ -1422,7 +1422,7 @@ function initGap(){
         n1:"Overview",n2:"Governance",n3:"Frameworks",n4:"Discovery",n5:"Adversarial",n6:"Guardrails",signout:"Sign out",
         crumb:"BACK TO THE INTERVIEW", h1:"Gap assessment",
         metaA:"MASTER SCOPE · 187 REQUIREMENTS · GENERATED TODAY", metaB:"COLLECTOR LIVE",
-        rerun:"Re-run interview", export:"Export report",
+        rerun:"Re-run interview", export:"Export report", master:"Master framework view",
         k1l:"READINESS", k1s:"Share of the 187 master-scope requirements that are established and evidenced today.",
         k2l:"REQUIREMENTS MAPPED", k2s:"23 from documents, 14 observed by discovery, the rest attested in the interview.",
         k3l:"FINDINGS ON THE REGISTER", k3c:"2 MAJOR NONCONFORMITIES", k3s:"Both majors block ISO/IEC 42001 certification until closed.",
@@ -1456,7 +1456,7 @@ function initGap(){
         n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
         crumb:"العودة إلى المقابلة", h1:"تقييم الفجوات",
         metaA:"النطاق الرئيسي · 187 متطلبا · أُنشئ اليوم", metaB:"المُجمّع مباشر",
-        rerun:"إعادة المقابلة", export:"تصدير التقرير",
+        rerun:"إعادة المقابلة", export:"تصدير التقرير", master:"عرض الإطار الرئيسي",
         k1l:"الجاهزية", k1s:"نسبة متطلبات النطاق الرئيسي الـ187 المُثبتة والمدعومة بالأدلة اليوم.",
         k2l:"المتطلبات المُغطاة", k2s:"23 من المستندات، و14 رصدها الاستكشاف، والبقية أُقرت في المقابلة.",
         k3l:"الملاحظات في السجل", k3c:"حالتا عدم مطابقة كبرى", k3s:"الحالتان الكبريان تمنعان اعتماد آيزو 42001 حتى إغلاقهما.",
@@ -1710,6 +1710,8 @@ function initGap(){
 
         var reportLink = document.getElementById("gpReportLink");
         if (reportLink) reportLink.href = "/report?eid=" + encodeURIComponent(eid);
+        var masterLink = document.getElementById("gpMasterLink");
+        if (masterLink) masterLink.href = "/master?eid=" + encodeURIComponent(eid);
 
         REAL = { pct: pct, mapped: pc.established, findingsTotal: rpt.findings.total, stillNeeded: pc.still_needed };
         fire();
@@ -1992,7 +1994,176 @@ function initReport(){
 }
 
 
-  const INIT = { guardrails: initGuardrails, discovery: initDiscovery, assessment: initChat, gap: initGap, report: initReport };
+  
+function initMaster(){
+  const _timers = [];
+  const _origST = window.setTimeout.bind(window);
+  window.setTimeout = function(fn, ms){ const id = _origST(fn, ms); _timers.push(id); return id; };
+  try{
+    var root = document.querySelector(".mfx");
+    /* no scroll-reveal on this page: show everything at once */
+    root.querySelectorAll(".rv").forEach(function(el){ el.classList.add("in"); });
+    var T = {
+      en:{
+        n1:"Overview",n2:"Governance",n3:"Frameworks",n4:"Discovery",n5:"Adversarial",n6:"Guardrails",signout:"Sign out",
+        crumb:"BACK TO THE GAP ASSESSMENT", h1:"Master framework assessment", report:"Applicability report", docs:"Evidence and documents",
+        k1l:"APPLICABILITY DETERMINED", k2l:"COLLECTOR EVIDENCE", k3l:"COMPLIANCE (HUMAN-ACCEPTED)", k4l:"CONTROLS ASSESSED",
+        fwT:"Each framework", fwS:"SAME SYSTEM PROFILE · SEPARATE PERCENTAGES",
+        regT:"Every control", regH:"VERDICT · CONTROL · EVIDENCE · MAPPING · FRAMEWORK",
+        regF:"EVIDENCE STATUS IS WHAT HAS BEEN OBSERVED, NOT WHETHER THE CONTROL IS MET.",
+        search:"Search controls", all:"ALL", more:"SHOW MORE",
+        ft1:"TAHARA AI · CONTINUOUS ASSURANCE PLATFORM", ft2:"SAFE · ETHICAL · TRANSPARENT",
+        lApp:"Applicability", lEvi:"Collector evidence", lCmp:"Compliance",
+        v:{APPLICABLE:"APPLICABLE",NOT_APPLICABLE:"NOT APPLICABLE",NEEDS_INFO:"NEEDS INFO",NEEDS_REVIEW:"NEEDS REVIEW"},
+        st:{not_applicable:"NOT APPLICABLE",undetermined:"UNDETERMINED",evidence_missing:"NO EVIDENCE",collector_partial:"PARTIAL",collector_observed:"OBSERVED",accepted:"ACCEPTED"},
+        noPull:"The collector has not been pulled for this engagement, so no control shows evidence yet. Open Evidence and documents and press Pull evidence.",
+        modErr:function(n, names){ return n + " collector module(s) could not be read: " + names + ". Their controls show no evidence; that is unknown, not clean."; },
+        applS:function(a, n, u){ return a + " applicable, " + n + " not applicable, " + u + " still undetermined."; },
+        evS:function(o, p, a){ return o + " fully observed and " + p + " partly, of " + a + " applicable controls."; },
+        cmpS:"Only a person accepting a control moves this. Nothing is counted from scanner or model output.",
+        totS:function(f){ return "across " + f + " frameworks"; },
+        cnt:function(a, t){ return a + " applicable of " + t; },
+        sub:function(n, t){ return n + " OF " + t + " SHOWN"; },
+        meta:function(eid, st){ return "ENGAGEMENT " + eid + " · REPORT " + st; },
+        err:"Could not load the master framework view: ", noEng:"No engagement selected. Open this page from the gap assessment."
+      },
+      ar:{
+        n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
+        crumb:"العودة إلى تقييم الفجوات", h1:"تقييم الإطار الرئيسي", report:"تقرير قابلية التطبيق", docs:"الأدلة والوثائق",
+        k1l:"قابلية التطبيق المحسومة", k2l:"أدلة المُجمّع", k3l:"الامتثال (بقبول بشري)", k4l:"الضوابط المقيّمة",
+        fwT:"كل إطار", fwS:"الملف نفسه للنظام · نسب منفصلة",
+        regT:"كل ضابط", regH:"القرار · الضابط · الدليل · الربط · الإطار",
+        regF:"حالة الدليل تعني ما رُصد، لا أن الضابط مستوفى.",
+        search:"ابحث في الضوابط", all:"الكل", more:"عرض المزيد",
+        ft1:"تهارا · منصة الضمان المستمر", ft2:"آمن · أخلاقي · شفاف",
+        lApp:"قابلية التطبيق", lEvi:"أدلة المُجمّع", lCmp:"الامتثال",
+        v:{APPLICABLE:"ينطبق",NOT_APPLICABLE:"لا ينطبق",NEEDS_INFO:"يحتاج معلومات",NEEDS_REVIEW:"يحتاج مراجعة"},
+        st:{not_applicable:"لا ينطبق",undetermined:"غير محسوم",evidence_missing:"بلا دليل",collector_partial:"جزئي",collector_observed:"مرصود",accepted:"مقبول"},
+        noPull:"لم يُسحب المُجمّع لهذا التقييم، فلا يظهر دليل لأي ضابط بعد. افتح الأدلة والوثائق واضغط سحب الأدلة.",
+        modErr:function(n, names){ return "تعذّرت قراءة " + n + " من وحدات المُجمّع: " + names + ". ضوابطها بلا دليل؛ وهذا مجهول لا سليم."; },
+        applS:function(a, n, u){ return a + " ينطبق، " + n + " لا ينطبق، " + u + " غير محسوم بعد."; },
+        evS:function(o, p, a){ return o + " مرصودة كليا و" + p + " جزئيا من " + a + " ضابطا منطبقا."; },
+        cmpS:"لا يحرّك هذه النسبة إلا قبول شخص للضابط. لا يُحتسب شيء من مخرجات الماسح أو النموذج.",
+        totS:function(f){ return "عبر " + f + " أُطر"; },
+        cnt:function(a, t){ return a + " منطبق من " + t; },
+        sub:function(n, t){ return "عُرض " + n + " من " + t; },
+        meta:function(eid, st){ return "التقييم " + eid + " · التقرير " + st; },
+        err:"تعذّر تحميل عرض الإطار الرئيسي: ", noEng:"لم يُحدَّد تقييم. افتح هذه الصفحة من تقييم الفجوات."
+      }
+    };
+    var lang = "en";
+    try{ var sl = localStorage.getItem("tahara-lang"); if(sl === "ar" || sl === "en") lang = sl; }catch(e){}
+    var DATA = null, fwF = "all", stF = "all", q = "", shown = 60, PAGE = 60;
+    function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
+    function $(id){ return document.getElementById(id); }
+
+    function applyLang(){
+      var d = T[lang];
+      document.documentElement.lang = lang === "ar" ? "ar" : "en";
+      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+      root.querySelectorAll("[data-i]").forEach(function(el){ var v = d[el.getAttribute("data-i")]; if(typeof v === "string") el.textContent = v; });
+      root.querySelectorAll("[data-i-ph]").forEach(function(el){ var v = d[el.getAttribute("data-i-ph")]; if(typeof v === "string") el.placeholder = v; });
+      root.querySelectorAll(".seg button[data-lang]").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-lang") === lang); });
+      try{ localStorage.setItem("tahara-lang", lang); }catch(e){}
+      if(DATA) paint();
+    }
+    root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
+      b.addEventListener("click", function(){ if(lang !== b.getAttribute("data-lang")){ lang = b.getAttribute("data-lang"); applyLang(); } });
+    });
+    try{ var th = localStorage.getItem("tahara-theme"); if(th) document.documentElement.dataset.theme = th; }catch(e){}
+    $("gpTheme").addEventListener("click", function(){
+      var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = n;
+      try{ localStorage.setItem("tahara-theme", n); }catch(e){}
+    });
+
+    function bar(id, pct){ var el = $(id); if(el) el.style.width = Math.max(0, Math.min(100, pct)) + "%"; }
+    function fwShort(id){ for(var i = 0; i < DATA.frameworks.length; i++) if(DATA.frameworks[i].id === id) return DATA.frameworks[i].name; return id; }
+
+    function paintTop(){
+      var d = T[lang], m = DATA.master;
+      $("mxAppl").textContent = m.applicability_pct; bar("mxApplBar", m.applicability_pct);
+      $("mxApplS").textContent = d.applS(m.applicable, m.not_applicable, m.undetermined);
+      $("mxEvid").textContent = m.evidence_pct; bar("mxEvidBar", m.evidence_pct);
+      $("mxEvidS").textContent = d.evS(m.collector_observed, m.collector_partial, m.applicable);
+      $("mxComp").textContent = m.compliance_pct; bar("mxCompBar", m.compliance_pct);
+      $("mxCompS").textContent = d.cmpS;
+      $("mxTotal").textContent = m.total;
+      $("mxTotalS").textContent = d.totS(DATA.frameworks.length);
+      $("mxMeta").textContent = d.meta(DATA.engagement_id, DATA.report_status);
+      var note = $("mxNote"), errs = [];
+      Object.keys(DATA.collector_modules || {}).forEach(function(k){ if(DATA.collector_modules[k] === "error") errs.push(k); });
+      if(!DATA.collector_pulled){ note.textContent = d.noPull; note.hidden = false; }
+      else if(errs.length){ note.textContent = d.modErr(errs.length, errs.join(", ")); note.hidden = false; }
+      else note.hidden = true;
+    }
+    function paintFw(){
+      var d = T[lang];
+      $("mxFw").innerHTML = DATA.frameworks.map(function(f){
+        function row(label, pct){
+          return '<div class="mxm"><span>' + esc(label) + '</span><b class="keep">' + pct + '%</b></div><div class="bar"><i style="width:' + Math.min(100, pct) + '%"></i></div>';
+        }
+        return '<div class="cc rv in"><div class="ch"><span class="fn keep">' + esc(f.name) + '</span><span class="fc keep">' + esc(d.cnt(f.applicable, f.total)) + '</span></div>' +
+          row(d.lApp, f.applicability_pct) + row(d.lEvi, f.evidence_pct) + row(d.lCmp, f.compliance_pct) + '</div>';
+      }).join("");
+    }
+    function chips(host, items, cur, on){
+      host.innerHTML = items.map(function(it){ return '<button class="flt' + (it.k === cur ? ' on' : '') + '" type="button" data-k="' + esc(it.k) + '">' + esc(it.l) + '</button>'; }).join("");
+      host.onclick = function(e){ var b = e.target.closest(".flt"); if(b) on(b.getAttribute("data-k")); };
+    }
+    function filtered(){
+      var needle = q.trim().toLowerCase();
+      return DATA.controls.filter(function(c){
+        if(fwF !== "all" && c.framework_id !== fwF) return false;
+        if(stF !== "all" && c.status !== stF) return false;
+        if(needle && (c.control_id + " " + (c.clause || "") + " " + (c.title || "")).toLowerCase().indexOf(needle) < 0) return false;
+        return true;
+      });
+    }
+    function paintRows(){
+      var d = T[lang], rows = filtered(), box = $("mxRows");
+      $("mxRegSub").textContent = d.sub(Math.min(shown, rows.length), rows.length);
+      if(!rows.length){ box.innerHTML = '<div class="frow" style="opacity:.6;padding:14px 4px">—</div>'; $("mxMore").hidden = true; return; }
+      box.innerHTML = rows.slice(0, shown).map(function(c){
+        var mods = c.modules && c.modules.length ? c.modules.join(", ") : "—";
+        return '<div class="frow">' +
+          '<span class="est v-' + esc(c.verdict) + '">' + esc(d.v[c.verdict] || c.verdict) + '</span>' +
+          '<span class="fc2"><span class="code keep">' + esc(c.clause || c.control_id) + '</span><div class="txt">' + esc(c.title || "") + '</div></span>' +
+          '<span class="est s-' + esc(c.status) + '">' + esc(d.st[c.status] || c.status) + '</span>' +
+          '<span class="own keep" title="' + esc(mods) + '">' + esc(mods) + '</span>' +
+          '<span class="due keep" style="text-align:start">' + esc(fwShort(c.framework_id)) + '</span></div>';
+      }).join("");
+      var more = $("mxMore"); more.hidden = rows.length <= shown; more.textContent = d.more + " · " + Math.min(PAGE, rows.length - shown);
+    }
+    function paintFilters(){
+      var d = T[lang];
+      chips($("mxFwFilter"), [{k:"all", l:d.all}].concat(DATA.frameworks.map(function(f){ return {k:f.id, l:f.name}; })), fwF, function(k){ fwF = k; shown = PAGE; paintFilters(); paintRows(); });
+      var sts = ["all","evidence_missing","collector_partial","collector_observed","accepted","not_applicable","undetermined"];
+      chips($("mxStFilter"), sts.map(function(k){ return {k:k, l: k === "all" ? d.all : d.st[k]}; }), stF, function(k){ stF = k; shown = PAGE; paintFilters(); paintRows(); });
+    }
+    function paint(){ paintTop(); paintFw(); paintFilters(); paintRows(); }
+
+    $("mxSearch").addEventListener("input", function(){ q = this.value; shown = PAGE; if(DATA) paintRows(); });
+    $("mxMore").addEventListener("click", function(){ shown += PAGE; paintRows(); });
+
+    (async function load(){
+      var eid = null;
+      try{ eid = new URLSearchParams(location.search).get("eid") || localStorage.getItem("tahara-last-engagement"); }catch(e){}
+      if(!eid){ $("mxMeta").textContent = T[lang].noEng; return; }
+      try{ localStorage.setItem("tahara-last-engagement", eid); }catch(e){}
+      var q1 = "?eid=" + encodeURIComponent(eid);
+      $("mxBack").href = "/gap" + q1; $("mxDocsLink").href = "/gap" + q1; $("mxReportLink").href = "/report" + q1;
+      try{ DATA = await getMaster(eid); paint(); }
+      catch(err){ $("mxMeta").textContent = T[lang].err + err.message; }
+    })();
+    applyLang();
+  } finally {
+    window.setTimeout = _origST;
+  }
+  return function dispose(){ _timers.forEach(function(id){ clearTimeout(id); }); };
+}
+
+const INIT = { guardrails: initGuardrails, discovery: initDiscovery, assessment: initChat, gap: initGap, report: initReport, master: initMaster };
   const fn = INIT[which];
   return typeof fn === "function" ? fn() : function(){};
 }

@@ -53,6 +53,7 @@ const MARKUP = `
           <svg viewBox="0 0 14 14" fill="none"><path d="M11.5 7A4.5 4.5 0 1 1 7 2.5M7 .8v3.4L9.2 2 7 .8Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span data-i="rerun">Re-run interview</span>
         </a>
+        <a class="btn-g" href="/master" id="gpMasterLink"><span data-i="master">Master framework view</span></a>
         <a class="btn-p" href="/report" id="gpReportLink">
           <svg viewBox="0 0 14 14" fill="none"><path d="M7 9.5V2M4.2 6.7 7 9.5l2.8-2.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11.8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           <span data-i="export">Export report</span>

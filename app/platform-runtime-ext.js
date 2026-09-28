@@ -2025,7 +2025,12 @@ function initMaster(){
         cnt:function(a, t){ return a + " applicable of " + t; },
         sub:function(n, t){ return n + " OF " + t + " SHOWN"; },
         meta:function(eid, st){ return "ENGAGEMENT " + eid + " · REPORT " + st; },
-        err:"Could not load the master framework view: ", noEng:"No engagement selected. Open this page from the gap assessment."
+        err:"Could not load the master framework view: ", noEng:"No engagement selected. Open this page from the gap assessment.",
+        evdT:"WHAT TO PROVE", evdNone:"No evidence catalogue for this control.",
+        src:{hand_authored:"COMPLIANCE EXPERT", llm_generated:"MODEL-PROPOSED", scf_summary:"GENERIC FALLBACK"},
+        reviewedY:"REVIEWED", reviewedN:"NOT REVIEWED",
+        evdCov:function(c, t){ return c + " of " + t + " applicable controls have an evidence catalogue"; },
+        evdRev:function(r, t){ return r + " of " + t + " evidence items are compliance-expert reviewed"; }
       },
       ar:{
         n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
@@ -2048,7 +2053,12 @@ function initMaster(){
         cnt:function(a, t){ return a + " منطبق من " + t; },
         sub:function(n, t){ return "عُرض " + n + " من " + t; },
         meta:function(eid, st){ return "التقييم " + eid + " · التقرير " + st; },
-        err:"تعذّر تحميل عرض الإطار الرئيسي: ", noEng:"لم يُحدَّد تقييم. افتح هذه الصفحة من تقييم الفجوات."
+        err:"تعذّر تحميل عرض الإطار الرئيسي: ", noEng:"لم يُحدَّد تقييم. افتح هذه الصفحة من تقييم الفجوات.",
+        evdT:"ما يجب إثباته", evdNone:"لا يوجد كتالوج أدلة لهذا الضابط.",
+        src:{hand_authored:"خبير امتثال", llm_generated:"اقترحه نموذج", scf_summary:"احتياطي عام"},
+        reviewedY:"رُوجع", reviewedN:"لم يُراجَع",
+        evdCov:function(c, t){ return c + " من " + t + " ضابطا منطبقا لديه كتالوج أدلة"; },
+        evdRev:function(r, t){ return r + " من " + t + " عنصر أدلة راجعه خبير امتثال"; }
       }
     };
     var lang = "en";
@@ -2120,21 +2130,53 @@ function initMaster(){
         return true;
       });
     }
+    var openRow = null;
+    function evidenceDetail(c){
+      var d = T[lang];
+      if(!c.evidence || !c.evidence.length) return '<div class="mxevd"><div class="mxevd-empty">' + esc(d.evdNone) + '</div></div>';
+      return '<div class="mxevd"><div class="mxevd-h">' + esc(d.evdT) + '</div>' + c.evidence.map(function(it){
+        var fmts = (it.format_labels || []).join(" · ");
+        return '<div class="mxevi">' +
+          '<span class="mxevi-src src-' + esc(it.source) + '">' + esc(d.src[it.source] || it.source) + '</span>' +
+          '<span class="mxevi-txt">' + esc(it.text) + '<small class="keep">' + esc(fmts) + '</small></span>' +
+          '<span class="mxevi-rev ' + (it.reviewed ? 'y' : 'n') + '">' + esc(it.reviewed ? d.reviewedY : d.reviewedN) + '</span>' +
+        '</div>';
+      }).join("") + '</div>';
+    }
     function paintRows(){
       var d = T[lang], rows = filtered(), box = $("mxRows");
       $("mxRegSub").textContent = d.sub(Math.min(shown, rows.length), rows.length);
+      openRow = null;
       if(!rows.length){ box.innerHTML = '<div class="frow" style="opacity:.6;padding:14px 4px">—</div>'; $("mxMore").hidden = true; return; }
       box.innerHTML = rows.slice(0, shown).map(function(c){
         var mods = c.modules && c.modules.length ? c.modules.join(", ") : "—";
-        return '<div class="frow">' +
+        var n = c.evidence ? c.evidence.length : 0;
+        return '<div class="frow" data-cid="' + esc(c.control_id) + '" role="button" tabindex="0">' +
           '<span class="est v-' + esc(c.verdict) + '">' + esc(d.v[c.verdict] || c.verdict) + '</span>' +
           '<span class="fc2"><span class="code keep">' + esc(c.clause || c.control_id) + '</span><div class="txt">' + esc(c.title || "") + '</div></span>' +
           '<span class="est s-' + esc(c.status) + '">' + esc(d.st[c.status] || c.status) + '</span>' +
           '<span class="own keep" title="' + esc(mods) + '">' + esc(mods) + '</span>' +
-          '<span class="due keep" style="text-align:start">' + esc(fwShort(c.framework_id)) + '</span></div>';
+          '<span class="due keep" style="text-align:start">' + esc(fwShort(c.framework_id)) + (n ? ' <i class="mxevn keep">' + n + '</i>' : '') + '</span></div>';
       }).join("");
       var more = $("mxMore"); more.hidden = rows.length <= shown; more.textContent = d.more + " · " + Math.min(PAGE, rows.length - shown);
     }
+    $("mxRows").addEventListener("click", function(e){
+      var row = e.target.closest(".frow[data-cid]"); if(!row) return;
+      var cid = row.getAttribute("data-cid");
+      var existing = row.nextElementSibling;
+      if(existing && existing.classList.contains("mxevd")){ existing.remove(); row.classList.remove("open"); openRow = null; return; }
+      root.querySelectorAll(".mxevd").forEach(function(x){ x.remove(); });
+      root.querySelectorAll(".frow.open").forEach(function(x){ x.classList.remove("open"); });
+      var c = DATA.controls.find(function(x){ return x.control_id === cid; });
+      if(!c) return;
+      row.insertAdjacentHTML("afterend", evidenceDetail(c));
+      row.classList.add("open"); openRow = cid;
+    });
+    $("mxRows").addEventListener("keydown", function(e){
+      if(e.key !== "Enter" && e.key !== " ") return;
+      var row = e.target.closest(".frow[data-cid]"); if(!row) return;
+      e.preventDefault(); row.click();
+    });
     function paintFilters(){
       var d = T[lang];
       chips($("mxFwFilter"), [{k:"all", l:d.all}].concat(DATA.frameworks.map(function(f){ return {k:f.id, l:f.name}; })), fwF, function(k){ fwF = k; shown = PAGE; paintFilters(); paintRows(); });

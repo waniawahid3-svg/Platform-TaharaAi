@@ -4,7 +4,7 @@
    HTML build. Everything runs inside run(), so it executes on mount when the
    markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
-import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl } from "@/lib/govApi";
+import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl, generateClarifications, answerClarification } from "@/lib/govApi";
 import { getDiscoveryHealth, scan as discoveryScan } from "@/lib/discoveryApi";
 
 export function run(which){
@@ -2032,7 +2032,13 @@ function initMaster(){
         src:{hand_authored:"COMPLIANCE EXPERT", llm_generated:"MODEL-PROPOSED", scf_summary:"GENERIC FALLBACK"},
         reviewedY:"REVIEWED", reviewedN:"NOT REVIEWED",
         evdCov:function(c, t){ return c + " of " + t + " applicable controls have an evidence catalogue"; },
-        evdRev:function(r, t){ return r + " of " + t + " evidence items are compliance-expert reviewed"; }
+        evdRev:function(r, t){ return r + " of " + t + " evidence items are compliance-expert reviewed"; },
+        ask:"Ask the auditor", asking:"Checking for genuine disagreements…",
+        askErr:"Could not check: ", askNone:"No unresolved two-model disagreement right now.",
+        askDone:function(n){ return n === 1 ? "1 clarifying question proposed." : n + " clarifying questions proposed."; },
+        clH:"AUDITOR'S CLARIFYING QUESTION", clWhy:"Proposed because the two models disagreed on this specific point:",
+        clAnsPh:"Type the operator's answer…", clSubmit:"Record answer", clAnswered:"ANSWERED",
+        clAnsErr:"Could not record the answer: "
       },
       ar:{
         n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
@@ -2060,12 +2066,18 @@ function initMaster(){
         src:{hand_authored:"خبير امتثال", llm_generated:"اقترحه نموذج", scf_summary:"احتياطي عام"},
         reviewedY:"رُوجع", reviewedN:"لم يُراجَع",
         evdCov:function(c, t){ return c + " من " + t + " ضابطا منطبقا لديه كتالوج أدلة"; },
-        evdRev:function(r, t){ return r + " من " + t + " عنصر أدلة راجعه خبير امتثال"; }
+        evdRev:function(r, t){ return r + " من " + t + " عنصر أدلة راجعه خبير امتثال"; },
+        ask:"اسأل المدقق", asking:"جارٍ التحقق من خلافات حقيقية…",
+        askErr:"تعذّر التحقق: ", askNone:"لا يوجد خلاف حقيقي بين النموذجين الآن.",
+        askDone:function(n){ return n === 1 ? "اقتُرح سؤال توضيحي واحد." : "اقتُرحت " + n + " أسئلة توضيحية."; },
+        clH:"سؤال المدقق التوضيحي", clWhy:"اقتُرح لأن النموذجين اختلفا تحديدا في هذه النقطة:",
+        clAnsPh:"اكتب إجابة المشغّل…", clSubmit:"تسجيل الإجابة", clAnswered:"تمت الإجابة",
+        clAnsErr:"تعذّر تسجيل الإجابة: "
       }
     };
     var lang = "en";
     try{ var sl = localStorage.getItem("tahara-lang"); if(sl === "ar" || sl === "en") lang = sl; }catch(e){}
-    var DATA = null, fwF = "all", stF = "all", q = "", shown = 60, PAGE = 60;
+    var DATA = null, fwF = "all", stF = "all", q = "", shown = 60, PAGE = 60, eidCurrent = null;
     function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
     function $(id){ return document.getElementById(id); }
 
@@ -2133,18 +2145,59 @@ function initMaster(){
       });
     }
     var openRow = null;
+    function clarificationBlock(c){
+      var d = T[lang], cl = c.clarification;
+      if(!cl) return "";
+      var answered = cl.answer && cl.answer.text;
+      return '<div class="mxcl" data-control="' + esc(c.control_id) + '">' +
+        '<div class="mxevd-h">' + esc(d.clH) + '</div>' +
+        '<div class="mxcl-q">' + esc(cl.question) + '</div>' +
+        '<div class="mxcl-why keep">' + esc(d.clWhy) + ' ' + esc(cl.verdict_reason || "") + '</div>' +
+        (answered
+          ? '<div class="mxcl-ans"><span class="mxcl-ans-tag">' + esc(d.clAnswered) + '</span><p>' + esc(cl.answer.text) + '</p></div>'
+          : '<form class="mxcl-form">' +
+              '<textarea class="mxcl-ta" placeholder="' + esc(d.clAnsPh) + '" rows="2"></textarea>' +
+              '<button class="btn-g" type="submit">' + esc(d.clSubmit) + '</button>' +
+              '<span class="mxcl-msg keep" role="status" aria-live="polite"></span>' +
+            '</form>') +
+      '</div>';
+    }
     function evidenceDetail(c){
       var d = T[lang];
-      if(!c.evidence || !c.evidence.length) return '<div class="mxevd"><div class="mxevd-empty">' + esc(d.evdNone) + '</div></div>';
-      return '<div class="mxevd"><div class="mxevd-h">' + esc(d.evdT) + '</div>' + c.evidence.map(function(it){
-        var fmts = (it.format_labels || []).join(" · ");
-        return '<div class="mxevi">' +
-          '<span class="mxevi-src src-' + esc(it.source) + '">' + esc(d.src[it.source] || it.source) + '</span>' +
-          '<span class="mxevi-txt">' + esc(it.text) + '<small class="keep">' + esc(fmts) + '</small></span>' +
-          '<span class="mxevi-rev ' + (it.reviewed ? 'y' : 'n') + '">' + esc(it.reviewed ? d.reviewedY : d.reviewedN) + '</span>' +
-        '</div>';
-      }).join("") + '</div>';
+      var cl = clarificationBlock(c);
+      var ev = (!c.evidence || !c.evidence.length)
+        ? '<div class="mxevd-empty">' + esc(d.evdNone) + '</div>'
+        : '<div class="mxevd-h">' + esc(d.evdT) + '</div>' + c.evidence.map(function(it){
+            var fmts = (it.format_labels || []).join(" · ");
+            return '<div class="mxevi">' +
+              '<span class="mxevi-src src-' + esc(it.source) + '">' + esc(d.src[it.source] || it.source) + '</span>' +
+              '<span class="mxevi-txt">' + esc(it.text) + '<small class="keep">' + esc(fmts) + '</small></span>' +
+              '<span class="mxevi-rev ' + (it.reviewed ? 'y' : 'n') + '">' + esc(it.reviewed ? d.reviewedY : d.reviewedN) + '</span>' +
+            '</div>';
+          }).join("");
+      return '<div class="mxevd">' + cl + ev + '</div>';
     }
+    $("mxRows").addEventListener("submit", async function(e){
+      var form = e.target.closest(".mxcl-form"); if(!form) return;
+      e.preventDefault();
+      var wrap = form.closest(".mxcl"), cid = wrap.getAttribute("data-control");
+      var ta = form.querySelector(".mxcl-ta"), msg = form.querySelector(".mxcl-msg");
+      var text = ta.value.trim();
+      if(!text) return;
+      var btn = form.querySelector("button"); btn.disabled = true;
+      try{
+        var rec = await answerClarification(eidCurrent, cid, text);
+        var c = DATA.controls.find(function(x){ return x.control_id === cid; });
+        if(c) c.clarification = rec;
+        var row = root.querySelector('.frow[data-cid="' + cid.replace(/"/g,'\\"') + '"]');
+        if(row && row.nextElementSibling && row.nextElementSibling.classList.contains("mxevd")){
+          row.nextElementSibling.outerHTML = evidenceDetail(c);
+        }
+      }catch(err){
+        btn.disabled = false;
+        msg.textContent = T[lang].clAnsErr + err.message; msg.classList.add("err");
+      }
+    });
     function paintRows(){
       var d = T[lang], rows = filtered(), box = $("mxRows");
       $("mxRegSub").textContent = d.sub(Math.min(shown, rows.length), rows.length);
@@ -2190,10 +2243,30 @@ function initMaster(){
     $("mxSearch").addEventListener("input", function(){ q = this.value; shown = PAGE; if(DATA) paintRows(); });
     $("mxMore").addEventListener("click", function(){ shown += PAGE; paintRows(); });
 
+    $("mxAsk").addEventListener("click", async function(){
+      if(!eidCurrent) return;
+      var d = T[lang], btn = this, orig = btn.querySelector("span").textContent;
+      btn.disabled = true; btn.querySelector("span").textContent = d.asking;
+      try{
+        var cl = await generateClarifications(eidCurrent);
+        DATA = await getMaster(eidCurrent);
+        paint();
+        var n = Object.keys(cl || {}).length;
+        var note = $("mxNote");
+        note.textContent = n ? d.askDone(n) : d.askNone;
+        note.hidden = false;
+      }catch(err){
+        var note2 = $("mxNote"); note2.textContent = d.askErr + err.message; note2.hidden = false;
+      }finally{
+        btn.disabled = false; btn.querySelector("span").textContent = orig;
+      }
+    });
+
     (async function load(){
       var eid = null;
       try{ eid = new URLSearchParams(location.search).get("eid") || localStorage.getItem("tahara-last-engagement"); }catch(e){}
       if(!eid){ $("mxMeta").textContent = T[lang].noEng; return; }
+      eidCurrent = eid;
       try{ localStorage.setItem("tahara-last-engagement", eid); }catch(e){}
       var q1 = "?eid=" + encodeURIComponent(eid);
       $("mxBack").href = "/gap" + q1; $("mxDocsLink").href = "/gap" + q1; $("mxReportLink").href = "/report" + q1;

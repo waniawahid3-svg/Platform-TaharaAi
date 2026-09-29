@@ -3217,6 +3217,9 @@ html[data-theme="dark"] .gpx .cc .bar i{background:linear-gradient(90deg,var(--a
 .gpx .evx{display:grid;grid-template-columns:1fr 1.4fr;gap:14px;align-items:start}
 .gpx .evb{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
 .gpx .evp{margin:0;font-size:12px;line-height:1.55;color:var(--ink-2)}
+.gpx .evlink{align-self:flex-start;font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+  font-weight:700;color:var(--acc);text-decoration:none}
+.gpx .evlink:hover{text-decoration:underline}
 .gpx .evr{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .gpx .evm{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--ink-3)}
 .gpx .evm.err{color:var(--red)}

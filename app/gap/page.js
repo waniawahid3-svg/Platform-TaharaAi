@@ -121,6 +121,7 @@ const MARKUP = `
         <div class="evb">
           <p class="evp" data-i="evPullP">Scan the host with AIGRC-Collector. Facts it observes are added to this engagement; everything else it finds appears on the findings register.</p>
           <div class="evr"><button class="btn-g" id="gpPull" type="button" data-i="evPull">Pull evidence</button><span class="evm" id="gpPullMsg" role="status" aria-live="polite"></span></div>
+          <a class="evlink" id="gpEvidenceChatLink" href="/evidence" data-i="evChatLink">Still missing something? Supply it yourself →</a>
         </div>
       </div>
       <div class="card evc">

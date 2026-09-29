@@ -1443,7 +1443,7 @@ function initGap(){
         effS:"SMALL", effM:"MEDIUM",
         evT:"Evidence and documents", evS:"LIVE HOST EVIDENCE · ISMS DOCUMENT PACKAGE",
         evPullH:"1 · LIVE EVIDENCE", evPullP:"Scan the host with AIGRC-Collector. Facts it observes are added to this engagement; everything else it finds appears on the findings register.",
-        evPull:"Pull evidence", evPulling:"Scanning…",
+        evPull:"Pull evidence", evPulling:"Scanning…", evChatLink:"Still missing something? Supply it yourself →",
         evGenH:"2 · ISMS DOCUMENTS", evGenP:"Generate the 11-document ISMS package (10 Word, 1 PowerPoint) from this interview and the latest evidence.",
         evMaster:"Include the 789-control determination (takes minutes)", evGen:"Generate documents", evGenning:"Generating…",
         evZip:"DOWNLOAD ALL (.ZIP)", evDl:"DOWNLOAD", evNoEng:"Complete an assessment first.",
@@ -1477,7 +1477,7 @@ function initGap(){
         effS:"صغير", effM:"متوسط",
         evT:"الأدلة والوثائق", evS:"أدلة المضيف المباشرة · حزمة وثائق نظام إدارة أمن المعلومات",
         evPullH:"1 · الأدلة المباشرة", evPullP:"افحص المضيف عبر AIGRC-Collector. تُضاف الوقائع المرصودة إلى هذا التقييم، وتظهر بقية النتائج في سجل الملاحظات.",
-        evPull:"سحب الأدلة", evPulling:"جارٍ الفحص…",
+        evPull:"سحب الأدلة", evPulling:"جارٍ الفحص…", evChatLink:"ما زال ينقصك شيء؟ وفّره بنفسك ←",
         evGenH:"2 · وثائق النظام", evGenP:"أنشئ حزمة وثائق النظام الـ11 (10 ملفات وورد وعرض تقديمي) من هذه المقابلة وأحدث الأدلة.",
         evMaster:"تضمين تحديد الضوابط الـ789 (يستغرق دقائق)", evGen:"إنشاء الوثائق", evGenning:"جارٍ الإنشاء…",
         evZip:"تنزيل الكل (ZIP)", evDl:"تنزيل", evNoEng:"أكمل تقييما أولا.",
@@ -1712,6 +1712,8 @@ function initGap(){
         if (reportLink) reportLink.href = "/report?eid=" + encodeURIComponent(eid);
         var masterLink = document.getElementById("gpMasterLink");
         if (masterLink) masterLink.href = "/master?eid=" + encodeURIComponent(eid);
+        var evidenceChatLink = document.getElementById("gpEvidenceChatLink");
+        if (evidenceChatLink) evidenceChatLink.href = "/evidence?eid=" + encodeURIComponent(eid);
 
         REAL = { pct: pct, mapped: pc.established, findingsTotal: rpt.findings.total, stillNeeded: pc.still_needed };
         fire();

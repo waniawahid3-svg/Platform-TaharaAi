@@ -1444,6 +1444,7 @@ function initGap(){
         evT:"Evidence and documents", evS:"LIVE HOST EVIDENCE · ISMS DOCUMENT PACKAGE",
         evPullH:"1 · LIVE EVIDENCE", evPullP:"Scan the host with AIGRC-Collector. Facts it observes are added to this engagement; everything else it finds appears on the findings register.",
         evPull:"Pull evidence", evPulling:"Scanning…", evChatLink:"Still missing something? Supply it yourself →",
+        evIsmsLink:"Open the full ISMS dashboard →",
         evGenH:"2 · ISMS DOCUMENTS", evGenP:"Generate the 11-document ISMS package (10 Word, 1 PowerPoint) from this interview and the latest evidence.",
         evMaster:"Include the 789-control determination (takes minutes)", evGen:"Generate documents", evGenning:"Generating…",
         evZip:"DOWNLOAD ALL (.ZIP)", evDl:"DOWNLOAD", evNoEng:"Complete an assessment first.",
@@ -1478,6 +1479,7 @@ function initGap(){
         evT:"الأدلة والوثائق", evS:"أدلة المضيف المباشرة · حزمة وثائق نظام إدارة أمن المعلومات",
         evPullH:"1 · الأدلة المباشرة", evPullP:"افحص المضيف عبر AIGRC-Collector. تُضاف الوقائع المرصودة إلى هذا التقييم، وتظهر بقية النتائج في سجل الملاحظات.",
         evPull:"سحب الأدلة", evPulling:"جارٍ الفحص…", evChatLink:"ما زال ينقصك شيء؟ وفّره بنفسك ←",
+        evIsmsLink:"افتح لوحة ISMS الكاملة ←",
         evGenH:"2 · وثائق النظام", evGenP:"أنشئ حزمة وثائق النظام الـ11 (10 ملفات وورد وعرض تقديمي) من هذه المقابلة وأحدث الأدلة.",
         evMaster:"تضمين تحديد الضوابط الـ789 (يستغرق دقائق)", evGen:"إنشاء الوثائق", evGenning:"جارٍ الإنشاء…",
         evZip:"تنزيل الكل (ZIP)", evDl:"تنزيل", evNoEng:"أكمل تقييما أولا.",
@@ -1714,6 +1716,8 @@ function initGap(){
         if (masterLink) masterLink.href = "/master?eid=" + encodeURIComponent(eid);
         var evidenceChatLink = document.getElementById("gpEvidenceChatLink");
         if (evidenceChatLink) evidenceChatLink.href = "/evidence?eid=" + encodeURIComponent(eid);
+        var ismsLink = document.getElementById("gpIsmsLink");
+        if (ismsLink) ismsLink.href = "/isms?eid=" + encodeURIComponent(eid);
 
         REAL = { pct: pct, mapped: pc.established, findingsTotal: rpt.findings.total, stillNeeded: pc.still_needed };
         fire();
@@ -2008,7 +2012,7 @@ function initMaster(){
     var T = {
       en:{
         n1:"Overview",n2:"Governance",n3:"Frameworks",n4:"Discovery",n5:"Adversarial",n6:"Guardrails",signout:"Sign out",
-        crumb:"BACK TO THE GAP ASSESSMENT", h1:"Master framework assessment", report:"Applicability report", docs:"Evidence and documents",
+        crumb:"BACK TO THE GAP ASSESSMENT", h1:"Master framework assessment", report:"Applicability report", docs:"Evidence and documents", isms:"ISMS documents",
         k1l:"APPLICABILITY DETERMINED", k2l:"COLLECTOR EVIDENCE", k3l:"COMPLIANCE (HUMAN-ACCEPTED)", k4l:"CONTROLS ASSESSED",
         fwT:"Each framework", fwS:"SAME SYSTEM PROFILE · SEPARATE PERCENTAGES",
         regT:"Every control", regH:"VERDICT · CONTROL · EVIDENCE · MAPPING · FRAMEWORK",
@@ -2042,7 +2046,7 @@ function initMaster(){
       },
       ar:{
         n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
-        crumb:"العودة إلى تقييم الفجوات", h1:"تقييم الإطار الرئيسي", report:"تقرير قابلية التطبيق", docs:"الأدلة والوثائق",
+        crumb:"العودة إلى تقييم الفجوات", h1:"تقييم الإطار الرئيسي", report:"تقرير قابلية التطبيق", docs:"الأدلة والوثائق", isms:"وثائق ISMS",
         k1l:"قابلية التطبيق المحسومة", k2l:"أدلة المُجمّع", k3l:"الامتثال (بقبول بشري)", k4l:"الضوابط المقيّمة",
         fwT:"كل إطار", fwS:"الملف نفسه للنظام · نسب منفصلة",
         regT:"كل ضابط", regH:"القرار · الضابط · الدليل · الربط · الإطار",
@@ -2270,6 +2274,7 @@ function initMaster(){
       try{ localStorage.setItem("tahara-last-engagement", eid); }catch(e){}
       var q1 = "?eid=" + encodeURIComponent(eid);
       $("mxBack").href = "/gap" + q1; $("mxDocsLink").href = "/gap" + q1; $("mxReportLink").href = "/report" + q1;
+      $("mxIsmsLink").href = "/isms" + q1;
       try{ DATA = await getMaster(eid); paint(); }
       catch(err){ $("mxMeta").textContent = T[lang].err + err.message; }
     })();
@@ -2544,7 +2549,205 @@ function initEvidenceChat(){
   };
 }
 
-const INIT = { guardrails: initGuardrails, discovery: initDiscovery, assessment: initChat, gap: initGap, report: initReport, master: initMaster, evidence: initEvidenceChat };
+function initIsms(){
+  const _timers = [];
+  const _origST = window.setTimeout.bind(window);
+  window.setTimeout = function(fn, ms){ const id = _origST(fn, ms); _timers.push(id); return id; };
+  try{
+    var root = document.querySelector(".isx");
+    root.querySelectorAll(".rv").forEach(function(el){ el.classList.add("in"); });
+    function $(id){ return document.getElementById(id); }
+    function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
+
+    var T = {
+      en:{
+        n1:"Overview",n2:"Governance",n3:"Frameworks",n4:"Discovery",n5:"Adversarial",n6:"Guardrails",signout:"Sign out",
+        crumb:"BACK TO THE GAP ASSESSMENT", h1:"ISMS document package", master:"Master framework view",
+        k1l:"DOCUMENTS READY", k2l:"EVIDENCE SOURCE", k3l:"MASTER FRAMEWORK", k4l:"AUDITOR CLARIFICATIONS",
+        genT:"Generate the package", genS:"10 WORD DOCUMENTS · 1 POWERPOINT · FROM THIS INTERVIEW AND THE LATEST EVIDENCE",
+        genP:"Regenerating replaces the previous package. Pull evidence on the gap assessment page first if you want this run to reflect a fresh collector scan.",
+        genMaster:"Include the 789-control determination and the auditor's clarifying questions (takes minutes)",
+        gen:"Generate documents", genning:"Generating…",
+        docsT:"The 11 documents", needT:"Needs a person",
+        needS:"TAHARA MASTER FRAMEWORK CONTROLS CARRIED INTO DOCUMENT 5 — ANSWER THESE ON THE MASTER VIEW TO REACH THEM",
+        ft1:"TAHARA AI · CONTINUOUS ASSURANCE PLATFORM", ft2:"SAFE · ETHICAL · TRANSPARENT",
+        noEng:"No engagement selected. Open this page from the gap assessment.",
+        meta:function(eid){ return "ENGAGEMENT " + eid; },
+        idle:"Not generated yet", idleS:"Press “Generate documents” below.",
+        processing:"Generating…", errS:function(e){ return "Failed: " + e; },
+        doneS:function(target, n){ return target ? n + " live record(s) from " + target : "no live evidence"; },
+        evErr:function(e){ return "No live evidence: " + e; },
+        mfIn:"Included", mfOut:"Not included", mfOutS:"Regenerate with the checkbox below to include it.",
+        mfS:function(a, r){ return a + " applicable, " + r + " needing review, of the 789-control determination."; },
+        clS:function(a, n){ return n === 0 ? "None proposed for this engagement yet." : a + " of " + n + " answered."; },
+        dl:"DOWNLOAD", dlAll:"DOWNLOAD ALL (.ZIP)",
+        goAnswer:"ANSWER →",
+        clNone:"no clarifying question yet", clPending:"awaiting an answer", clDone:"answered",
+        genErr:"Could not start generation: ", noNode:"Node.js is required to render the documents on this host.",
+        v:{APPLICABLE:"APPLICABLE",NOT_APPLICABLE:"NOT APPLICABLE",NEEDS_INFO:"NEEDS INFO",NEEDS_REVIEW:"NEEDS REVIEW"},
+      },
+      ar:{
+        n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
+        crumb:"العودة إلى تقييم الفجوات", h1:"حزمة وثائق ISMS", master:"عرض الإطار الرئيسي",
+        k1l:"الوثائق الجاهزة", k2l:"مصدر الأدلة", k3l:"الإطار الرئيسي", k4l:"استيضاحات المدقق",
+        genT:"إنشاء الحزمة", genS:"10 مستندات وورد · عرض تقديمي واحد · من هذه المقابلة وأحدث الأدلة",
+        genP:"إعادة الإنشاء تستبدل الحزمة السابقة. اسحب الأدلة في صفحة تقييم الفجوات أولا إذا أردت أن تعكس هذه الدورة مسحا حديثا.",
+        genMaster:"تضمين تحديد الـ789 ضابطا وأسئلة المدقق التوضيحية (يستغرق دقائق)",
+        gen:"إنشاء الوثائق", genning:"جارٍ الإنشاء…",
+        docsT:"الوثائق الإحدى عشرة", needT:"يحتاج شخصا",
+        needS:"ضوابط الإطار الرئيسي المنقولة إلى الوثيقة 5 — أجب عنها في عرض الإطار الرئيسي للوصول إليها",
+        ft1:"TAHARA AI · CONTINUOUS ASSURANCE PLATFORM", ft2:"SAFE · ETHICAL · TRANSPARENT",
+        noEng:"لم يُحدد تقييم. افتح هذه الصفحة من تقييم الفجوات.",
+        meta:function(eid){ return "التقييم " + eid; },
+        idle:"لم يُنشأ بعد", idleS:"اضغط “إنشاء الوثائق” أدناه.",
+        processing:"جارٍ الإنشاء…", errS:function(e){ return "فشل: " + e; },
+        doneS:function(target, n){ return target ? n + " سجل حي من " + target : "لا توجد أدلة حية"; },
+        evErr:function(e){ return "لا توجد أدلة حية: " + e; },
+        mfIn:"مضمّن", mfOut:"غير مضمّن", mfOutS:"أعد الإنشاء مع تحديد المربع أدناه لتضمينه.",
+        mfS:function(a, r){ return a + " منطبق، " + r + " بحاجة إلى مراجعة، من تحديد الـ789 ضابطا."; },
+        clS:function(a, n){ return n === 0 ? "لم يُقترح أي منها لهذا التقييم بعد." : a + " من " + n + " تمت الإجابة عنها."; },
+        dl:"تنزيل", dlAll:"تنزيل الكل (.ZIP)",
+        goAnswer:"أجب ←",
+        clNone:"لا يوجد سؤال توضيحي بعد", clPending:"بانتظار إجابة", clDone:"أُجيب عنه",
+        genErr:"تعذّر بدء الإنشاء: ", noNode:"يلزم Node.js لعرض الوثائق على هذا الجهاز.",
+        v:{APPLICABLE:"منطبق",NOT_APPLICABLE:"غير منطبق",NEEDS_INFO:"يحتاج معلومات",NEEDS_REVIEW:"يحتاج مراجعة"},
+      }
+    };
+    var lang = "en";
+    try{ var sl = localStorage.getItem("tahara-lang"); if(sl === "ar" || sl === "en") lang = sl; }catch(e){}
+
+    var eid = null;
+    try{ eid = new URLSearchParams(location.search).get("eid") || localStorage.getItem("tahara-last-engagement"); }catch(e){}
+    var q1 = eid ? "?eid=" + encodeURIComponent(eid) : "";
+    $("isBack").href = "/gap" + q1; $("isMasterLink").href = "/master" + q1;
+
+    var last = null, poll = null, masterRows = null;
+
+    function paintFiles(m){
+      var d = T[lang];
+      $("isDocsSub").textContent = m.status === "done" ? m.files.length + " / 11" : "…";
+      $("isFiles").innerHTML = (m.files || []).map(function(f){
+        return '<div class="evf"><span class="n">' + esc(f.doc_id) + '</span><span class="t">' + esc(f.title) + '</span>' +
+          '<span class="z keep">' + esc(f.kind.toUpperCase()) + ' · ' + Math.max(1, Math.round(f.size / 1024)) + ' KB</span>' +
+          '<a href="' + esc(ismsFileUrl(eid, f.filename)) + '" download>' + esc(d.dl) + '</a></div>';
+      }).join("") + (m.files && m.files.length ? '<div class="evf evz"><a href="' + esc(ismsZipUrl(eid)) + '" download>' + esc(d.dlAll) + '</a></div>' : "");
+    }
+
+    function paintNeeding(){
+      var d = T[lang];
+      if(!masterRows){ $("isNeedT").hidden = true; $("isNeedCard").hidden = true; return; }
+      var rows = masterRows.filter(function(r){ return r.verdict === "NEEDS_INFO" || r.verdict === "NEEDS_REVIEW"; });
+      if(!rows.length){ $("isNeedT").hidden = true; $("isNeedCard").hidden = true; return; }
+      $("isNeedT").hidden = false; $("isNeedCard").hidden = false;
+      $("isNeedRows").innerHTML = rows.map(function(r){
+        var cl = r.clarification;
+        var clText = !cl ? d.clNone : (cl.answer && cl.answer.text ? d.clDone : d.clPending);
+        return '<div class="evf"><span class="n">' + esc(r.control_id) + '</span>' +
+          '<span class="t">' + esc(r.title) + '</span>' +
+          '<span class="z keep">' + esc(d.v[r.verdict] || r.verdict) + ' · ' + esc(clText) + '</span>' +
+          '<a href="/master' + q1 + '">' + esc(d.goAnswer) + '</a></div>';
+      }).join("");
+    }
+
+    function paintKpis(m){
+      var d = T[lang];
+      if(m.status === "done"){
+        $("isKDocs").innerHTML = m.files.length + "<small>/11</small>";
+        $("isKDocsS").textContent = new Date(m.generated_at).toLocaleString();
+        $("isKEvid").textContent = m.evidence_error ? "—" : (m.evidence_target || "—");
+        $("isKEvidS").textContent = m.evidence_error ? d.evErr(m.evidence_error) : d.doneS(m.evidence_target, m.evidence_records || 0);
+        if(m.master_framework){
+          $("isKMf").textContent = d.mfIn;
+          getMaster(eid).then(function(mv){
+            masterRows = mv.controls || [];
+            var applicable = masterRows.filter(function(r){ return r.verdict === "APPLICABLE"; }).length;
+            var review = masterRows.filter(function(r){ return r.verdict === "NEEDS_INFO" || r.verdict === "NEEDS_REVIEW"; }).length;
+            $("isKMfS").textContent = d.mfS(applicable, review);
+            var clRows = masterRows.filter(function(r){ return r.clarification; });
+            var answered = clRows.filter(function(r){ return r.clarification.answer && r.clarification.answer.text; }).length;
+            $("isKCl").textContent = clRows.length ? answered + " / " + clRows.length : "—";
+            $("isKClS").textContent = d.clS(answered, clRows.length);
+            paintNeeding();
+          }).catch(function(){ $("isKMfS").textContent = ""; });
+        } else {
+          $("isKMf").textContent = d.mfOut; $("isKMfS").textContent = d.mfOutS;
+          $("isKCl").textContent = "—"; $("isKClS").textContent = d.clS(0, 0);
+          masterRows = null; paintNeeding();
+        }
+      } else {
+        $("isKDocs").innerHTML = "0<small>/11</small>";
+        $("isKDocsS").textContent = m.status === "processing" ? d.processing : (m.status === "error" ? d.errS(m.error || "") : d.idleS);
+        $("isKEvid").textContent = "—"; $("isKEvidS").textContent = "";
+        $("isKMf").textContent = "—"; $("isKMfS").textContent = "";
+        $("isKCl").textContent = "—"; $("isKClS").textContent = "";
+        masterRows = null; paintNeeding();
+      }
+    }
+
+    function paint(m){
+      var d = T[lang]; last = m;
+      var gen = $("isGen"), bar = $("isGenBar"), msg = $("isGenMsg");
+      $("isMeta").textContent = eid ? d.meta(eid) : d.noEng;
+      if(m.status === "processing"){
+        gen.disabled = true; gen.textContent = d.genning; bar.hidden = false;
+        var pr = m.progress || {};
+        bar.firstElementChild.style.width = (pr.total ? pr.done / pr.total * 100 : 5) + "%";
+        msg.textContent = pr.current || "";
+      } else {
+        gen.disabled = !eid; gen.textContent = d.gen; bar.hidden = true;
+        if(poll){ clearInterval(poll); poll = null; }
+        msg.textContent = m.status === "error" ? d.errS(m.error || "") : "";
+      }
+      paintFiles(m.status === "done" ? m : { status: m.status, files: [] });
+      paintKpis(m);
+    }
+
+    async function refresh(){
+      if(!eid) return;
+      try{ paint(await getIsmsPackage(eid)); }catch(err){ $("isGenMsg").textContent = err.message; }
+    }
+    function startPolling(){ if(!poll) poll = setInterval(refresh, 1500); }
+
+    if(eid){
+      $("isGen").addEventListener("click", async function(){
+        var d = T[lang];
+        $("isGen").disabled = true; $("isGenMsg").textContent = "";
+        try{ await startIsmsPackage(eid, $("isMaster").checked); startPolling(); await refresh(); }
+        catch(err){ $("isGen").disabled = false; $("isGenMsg").textContent = d.genErr + err.message; }
+      });
+      refresh().then(function(){ if(last && last.status === "processing") startPolling(); });
+    } else {
+      $("isGen").disabled = true;
+      $("isMeta").textContent = T[lang].noEng;
+    }
+
+    function applyLang(){
+      var d = T[lang];
+      document.documentElement.lang = lang === "ar" ? "ar" : "en";
+      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+      root.querySelectorAll("[data-i]").forEach(function(el){ var v = d[el.getAttribute("data-i")]; if(typeof v === "string") el.textContent = v; });
+      root.querySelectorAll(".seg button[data-lang]").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-lang") === lang); });
+      try{ localStorage.setItem("tahara-lang", lang); }catch(e){}
+      if(last) paint(last);
+    }
+    root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
+      b.addEventListener("click", function(){ if(lang !== b.getAttribute("data-lang")){ lang = b.getAttribute("data-lang"); applyLang(); } });
+    });
+    try{ var th = localStorage.getItem("tahara-theme"); if(th) document.documentElement.dataset.theme = th; }catch(e){}
+    $("gpTheme").addEventListener("click", function(){
+      var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = n;
+      try{ localStorage.setItem("tahara-theme", n); }catch(e){}
+    });
+
+    applyLang();
+  } finally {
+    window.setTimeout = _origST;
+  }
+  return function dispose(){ _timers.forEach(function(id){ clearTimeout(id); }); };
+}
+
+const INIT = { guardrails: initGuardrails, discovery: initDiscovery, assessment: initChat, gap: initGap, report: initReport, master: initMaster, evidence: initEvidenceChat, isms: initIsms };
   const fn = INIT[which];
   return typeof fn === "function" ? fn() : function(){};
 }

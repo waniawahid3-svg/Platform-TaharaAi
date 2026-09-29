@@ -52,6 +52,7 @@ const MARKUP = `
         <button class="btn-g" id="mxAsk" type="button"><span data-i="ask">Ask the auditor</span></button>
         <a class="btn-g" href="/report" id="mxReportLink"><span data-i="report">Applicability report</span></a>
         <a class="btn-p" href="/gap" id="mxDocsLink"><span data-i="docs">Evidence and documents</span></a>
+        <a class="btn-g" href="/isms" id="mxIsmsLink"><span data-i="isms">ISMS documents</span></a>
       </div>
     </div>
 

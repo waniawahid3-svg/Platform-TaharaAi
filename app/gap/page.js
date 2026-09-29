@@ -132,6 +132,7 @@ const MARKUP = `
           <div class="evr"><button class="btn-p" id="gpGen" type="button" data-i="evGen">Generate documents</button><span class="evm" id="gpGenMsg" role="status" aria-live="polite"></span></div>
           <div class="evbar" id="gpGenBar" hidden><i></i></div>
           <div id="gpFiles"></div>
+          <a class="evlink" id="gpIsmsLink" href="/isms" data-i="evIsmsLink">Open the full ISMS dashboard →</a>
         </div>
       </div>
     </div>

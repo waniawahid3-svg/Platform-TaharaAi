@@ -2741,6 +2741,21 @@ html[data-theme="dark"] .chx .msg.me .bubble{color:#06121F}
 .chx .drop .i svg{width:17px;height:17px}
 .chx .drop .m{font-size:13px;font-weight:600;color:var(--ink)}
 .chx .drop .s{font-family:var(--mono);font-size:7.5px;letter-spacing:.13em;color:var(--ink-3);margin-top:7px}
+.chx .drop.busy{cursor:progress;opacity:.7}
+
+/* Evidence-request card (evidence chat, /evidence) */
+.chx .ev-req{max-width:560px}
+.chx .ev-req-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:8px}
+.chx .ev-req-h .badge{font-family:var(--mono);font-size:9px;letter-spacing:.08em;font-weight:700;
+  color:var(--acc);background:var(--acc-t);border-radius:999px;padding:3px 9px}
+.chx .ev-req-t{font-size:13px;font-weight:600;color:var(--ink)}
+.chx .ev-req-need{font-size:13px;line-height:1.55;color:var(--ink-2)}
+.chx .ev-req-need b{color:var(--ink);font-weight:700}
+.chx .ev-req-fmt{margin-top:8px;font-size:11px;color:var(--ink-3)}
+.chx .ev-req-p{margin-top:8px;font-family:var(--mono);font-size:7.5px;letter-spacing:.12em;color:var(--ink-3)}
+.chx .ev-req-p a{color:var(--acc);text-decoration:none;font-weight:700}
+.chx .ev-req-p a:hover{text-decoration:underline}
+.chx .err{color:var(--red)}
 .chx .files{margin-top:12px;display:flex;flex-direction:column;gap:6px}
 .chx .file{display:flex;align-items:center;gap:10px;padding:8px 11px;border:1px solid var(--line-2);
   border-radius:9px;background:var(--card-2);font-size:12px}

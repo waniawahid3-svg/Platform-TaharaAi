@@ -4,7 +4,7 @@
    HTML build. Everything runs inside run(), so it executes on mount when the
    markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
-import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster } from "@/lib/govApi";
+import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl } from "@/lib/govApi";
 import { getDiscoveryHealth, scan as discoveryScan } from "@/lib/discoveryApi";
 
 export function run(which){
@@ -2207,7 +2207,271 @@ function initMaster(){
   return function dispose(){ _timers.forEach(function(id){ clearTimeout(id); }); };
 }
 
-const INIT = { guardrails: initGuardrails, discovery: initDiscovery, assessment: initChat, gap: initGap, report: initReport, master: initMaster };
+function initEvidenceChat(){
+  const _ios = [];
+  const _timers = [];
+  const _origIO = window.IntersectionObserver;
+  window.IntersectionObserver = function(cb, opts){ const io = new _origIO(cb, opts); _ios.push(io); return io; };
+  const _origST = window.setTimeout.bind(window);
+  window.setTimeout = function(fn, ms){ const id = _origST(fn, ms); _timers.push(id); return id; };
+  try{
+
+  var root = document.querySelector(".chx");
+  var BATCH = 15; // how many pending items are fetched at once -- see the module note on why
+                  // "skip" navigates within this batch rather than round-tripping the server.
+
+  var T = {
+    en:{
+      n1:"Overview", n2:"Governance", n3:"Frameworks", n4:"Discovery", n5:"Adversarial", n6:"Guardrails",
+      signout:"Sign out",
+      runT:"Evidence request", runS:"WHAT AN AUDITOR WOULD ASK TO SEE, ONE ARTEFACT AT A TIME", runLive:"IN PROGRESS", runDone:"COMPLETE",
+      ph:"Say why this can't be supplied, or leave blank and skip", skipTitle:"Skip for now -- asked again in a later round",
+      sProgress:"EVIDENCE REQUESTS", sSupplied:"SUPPLIED",
+      kTotal:"Total asked", kSupplied:"Supplied", kRemaining:"Still needed",
+      sAbout:"ABOUT THIS LIST",
+      aboutBody:"Only controls the collector could not fully confirm on its own appear here. Pull evidence on the gap page first — a fresh collector pull can clear items from this list before you ever have to upload anything.",
+      ft1:"TAHARA AI · CONTINUOUS ASSURANCE PLATFORM", ft2:"SAFE · ETHICAL · TRANSPARENT",
+      auditor:"ASSURANCE AUDITOR", you:"YOU",
+      noEng:"No engagement selected. Open this page from the gap assessment first.",
+      loadErr:"Could not load evidence requests: ",
+      nothingAsked:"Nothing has been asked for yet on this engagement — either it has no applicable controls, or the collector has already confirmed everything it can.",
+      allDone:"Every evidence request on this engagement has been supplied. Nothing outstanding.",
+      forControl:"FOR",
+      needText:"What's needed:", suggestedFormat:"Suggested format",
+      dropM:"Drop the file, or click to select", dropS:"ANY FILE · DOCUMENT OR SCREENSHOT",
+      uploading:"Uploading…",
+      uploaded:function(fn, ctrl){ return "Uploaded " + fn + " for " + ctrl + "."; },
+      uploadErr:"Upload failed: ",
+      skipped:function(ctrl){ return "Skipped " + ctrl + " for now."; },
+      progress:function(i, n){ return "Item " + i + " of this round's " + n; },
+      viewUploaded:"View what was supplied →"
+    },
+    ar:{
+      n1:"نظرة عامة", n2:"الحوكمة", n3:"الأُطر", n4:"الاستكشاف", n5:"الاختبار العدائي", n6:"حواجز الحماية",
+      signout:"تسجيل الخروج",
+      runT:"طلب الأدلة", runS:"ما يطلبه المدقق ليراه، دليلا واحدا تلو الآخر", runLive:"قيد التنفيذ", runDone:"اكتمل",
+      ph:"اذكر لماذا يتعذر توفير هذا، أو اتركه فارغا وتخطَّ", skipTitle:"تخطَّ الآن — سيُطلب مجددا في جولة لاحقة",
+      sProgress:"طلبات الأدلة", sSupplied:"تم التوفير",
+      kTotal:"إجمالي المطلوب", kSupplied:"تم توفيره", kRemaining:"ما زال مطلوبا",
+      sAbout:"عن هذه القائمة",
+      aboutBody:"لا تظهر هنا إلا الضوابط التي تعذّر على المُجمّع تأكيدها بنفسه بالكامل. اسحب الأدلة من صفحة تقييم الفجوات أولا — فقد يزيل سحب جديد من المُجمّع عناصر من هذه القائمة قبل أن تحتاج لرفع أي شيء.",
+      ft1:"تهارا · منصة الضمان المستمر", ft2:"آمن · أخلاقي · شفاف",
+      auditor:"مدقق الضمان", you:"أنت",
+      noEng:"لم يُحدَّد تقييم. افتح هذه الصفحة من تقييم الفجوات أولا.",
+      loadErr:"تعذّر تحميل طلبات الأدلة: ",
+      nothingAsked:"لم يُطلب أي شيء بعد لهذا التقييم — إما أنه بلا ضوابط منطبقة، أو أن المُجمّع أكّد بالفعل كل ما يمكنه تأكيده.",
+      allDone:"تم توفير كل طلبات الأدلة لهذا التقييم. لا يوجد شيء متبقٍ.",
+      forControl:"للضابط",
+      needText:"المطلوب:", suggestedFormat:"الصيغة المقترحة",
+      dropM:"أسقط الملف هنا، أو انقر للاختيار", dropS:"أي ملف · مستند أو لقطة شاشة",
+      uploading:"جارٍ الرفع…",
+      uploaded:function(fn, ctrl){ return "تم رفع " + fn + " للضابط " + ctrl + "."; },
+      uploadErr:"فشل الرفع: ",
+      skipped:function(ctrl){ return "تم تخطي " + ctrl + " الآن."; },
+      progress:function(i, n){ return "العنصر " + i + " من " + n + " في هذه الجولة"; },
+      viewUploaded:"عرض ما تم توفيره ←"
+    }
+  };
+  var lang = "en";
+  try{ var sl = localStorage.getItem("tahara-lang"); if(sl === "ar" || sl === "en") lang = sl; }catch(e){}
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function applyLang(){
+    var d = T[lang];
+    document.documentElement.lang = lang === "ar" ? "ar" : "en";
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    root.querySelectorAll("[data-i]").forEach(function(el){
+      var v = d[el.getAttribute("data-i")];
+      if(typeof v === "string") el.textContent = v;
+    });
+    var ci = document.getElementById("ci");
+    if(ci) ci.placeholder = d.ph;
+    root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
+      b.classList.toggle("on", b.getAttribute("data-lang") === lang);
+    });
+    try{ localStorage.setItem("tahara-lang", lang); }catch(e){}
+  }
+  root.querySelectorAll(".seg button[data-lang]").forEach(function(b){
+    b.addEventListener("click", function(){
+      if(lang === b.getAttribute("data-lang")) return;
+      lang = b.getAttribute("data-lang");
+      applyLang();
+    });
+  });
+  try{ var st = localStorage.getItem("tahara-theme"); if(st) document.documentElement.dataset.theme = st; }catch(e){}
+  document.getElementById("themeTg").addEventListener("click", function(){
+    var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = n;
+    try{ localStorage.setItem("tahara-theme", n); }catch(e){}
+  });
+
+  var S = document.getElementById("stream");
+  var AV = '<span class="av"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 20 7.4 12 11.8 4 7.4 12 3Z" fill="currentColor"/><path d="M12 10.4 20 15l-8 4.6L4 15l8-4.6Z" fill="currentColor" opacity=".55"/></svg></span>';
+
+  var stick = true, lock = 0;
+  S.addEventListener("scroll", function(){
+    if(Date.now() < lock) return;
+    stick = (S.scrollHeight - S.scrollTop - S.clientHeight) < 120;
+  }, { passive:true });
+  function pin(){
+    if(!stick) return;
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){ lock = Date.now() + 500; S.scrollTop = S.scrollHeight; });
+    });
+  }
+  function scrollEnd(){ stick = true; pin(); }
+  new MutationObserver(pin).observe(S, { childList:true, subtree:true, characterData:true });
+
+  function bot(html){
+    var el = document.createElement("div");
+    el.className = "msg";
+    el.innerHTML = '<div class="who">' + AV + '<span>' + T[lang].auditor + '</span></div><div class="bubble">' + html + '</div>';
+    S.appendChild(el); scrollEnd(); return el;
+  }
+  function me(html){
+    var el = document.createElement("div");
+    el.className = "msg me";
+    el.innerHTML = '<div class="who"><span>' + T[lang].you + '</span></div><div class="bubble">' + html + '</div>';
+    S.appendChild(el); scrollEnd();
+  }
+
+  var eid = null, queue = [], qi = 0, totalRounds = 0;
+
+  function updSidebar(sum){
+    var pct = sum.total ? Math.round(100 * sum.supplied / sum.total) : 0;
+    document.getElementById("pct").textContent = pct;
+    document.getElementById("pbar").style.width = pct + "%";
+    document.getElementById("kTotal").textContent = sum.total;
+    document.getElementById("kSupplied").textContent = sum.supplied;
+    document.getElementById("kRemaining").textContent = sum.remaining;
+    var live = root.querySelector(".live span");
+    if(live) live.textContent = sum.remaining === 0 ? T[lang].runDone : T[lang].runLive;
+  }
+
+  function itemCard(item, idx, n){
+    var d = T[lang];
+    var formats = (item.format_labels || []).join(" · ");
+    return (
+      '<div class="ev-req">' +
+        '<div class="ev-req-h"><span class="badge keep">' + esc(item.clause || item.control_id) + '</span>' +
+          '<span class="ev-req-t">' + esc(item.control_title || "") + '</span></div>' +
+        '<div class="ev-req-need"><b>' + esc(d.needText) + '</b> ' + esc(item.text) + '</div>' +
+        (formats ? '<div class="ev-req-fmt">' + esc(d.suggestedFormat) + ': <span class="keep">' + esc(formats) + '</span></div>' : '') +
+        '<div class="drop" data-item="' + esc(item.item_id) + '">' +
+          '<div class="i"><svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4M7.5 8.5 12 4l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>' +
+          '<div class="m">' + esc(d.dropM) + '</div><div class="s">' + esc(d.dropS) + '</div>' +
+        '</div>' +
+        '<div class="ev-req-p keep">' + esc(d.progress(idx, n)) + '</div>' +
+      '</div>'
+    );
+  }
+
+  var realFileInput = null;
+  function ensureFileInput(){
+    if(realFileInput) return realFileInput;
+    realFileInput = document.createElement("input");
+    realFileInput.type = "file";
+    realFileInput.hidden = true;
+    root.appendChild(realFileInput);
+    return realFileInput;
+  }
+
+  async function refill(){
+    var res = await getEvidenceRequests(eid, BATCH);
+    updSidebar(res.summary);
+    queue = res.items || [];
+    qi = 0;
+    totalRounds += 1;
+    return res;
+  }
+
+  async function showCurrent(){
+    if(qi >= queue.length){
+      var res = await refill();
+      if(!res.items || !res.items.length){
+        var d = T[lang];
+        bot(res.summary.total === 0 ? d.nothingAsked : d.allDone);
+        var bar = document.getElementById("composeBar");
+        if(bar) bar.hidden = true;
+        return;
+      }
+    }
+    var item = queue[qi];
+    var bubble = bot(itemCard(item, qi + 1, queue.length));
+    var drop = bubble.querySelector(".drop");
+    var input = ensureFileInput();
+    drop.addEventListener("click", function(){ input.click(); });
+    input.onchange = function(){
+      var f = (input.files || [])[0];
+      input.value = "";
+      if(f) handleUpload(item, f, drop);
+    };
+    var bar = document.getElementById("composeBar");
+    if(bar){
+      bar.hidden = false;
+      window.evxSkip = function(){
+        var reason = document.getElementById("ci").value.trim();
+        document.getElementById("ci").value = "";
+        me(T[lang].skipped(esc(item.clause || item.control_id)) + (reason ? " (" + esc(reason) + ")" : ""));
+        qi += 1;
+        showCurrent();
+      };
+    }
+  }
+
+  async function handleUpload(item, file, dropEl){
+    dropEl.classList.add("busy");
+    dropEl.querySelector(".m").textContent = T[lang].uploading;
+    try{
+      var res = await uploadEvidence(eid, item.item_id, file);
+      me(T[lang].uploaded(esc(file.name), esc(item.clause || item.control_id)) +
+         '<div class="ev-req-p keep"><a href="' + esc(evidenceUploadFileUrl(eid, item.item_id)) + '" target="_blank" rel="noopener">' + esc(T[lang].viewUploaded) + '</a></div>');
+      updSidebar(res.summary);
+      queue.splice(qi, 1); // supplied -- remove from this round's local queue, do not advance qi
+      showCurrent();
+    }catch(err){
+      dropEl.classList.remove("busy");
+      dropEl.querySelector(".m").textContent = T[lang].dropM;
+      me('<span class="err keep">' + esc(T[lang].uploadErr + err.message) + '</span>');
+    }
+  }
+
+  (async function start(){
+    try{ eid = new URLSearchParams(location.search).get("eid") || localStorage.getItem("tahara-last-engagement"); }catch(e){}
+    if(!eid){
+      bot(T[lang].noEng);
+      var bar0 = document.getElementById("composeBar");
+      if(bar0) bar0.hidden = true;
+      return;
+    }
+    try{ localStorage.setItem("tahara-last-engagement", eid); }catch(e){}
+    try{
+      await showCurrent();
+    }catch(err){
+      bot(T[lang].loadErr + esc(err.message));
+      var bar1 = document.getElementById("composeBar");
+      if(bar1) bar1.hidden = true;
+    }
+  })();
+
+  applyLang();
+
+  } finally {
+    window.IntersectionObserver = _origIO;
+    window.setTimeout = _origST;
+  }
+  return function dispose(){
+    _ios.forEach(function(io){ io.disconnect(); });
+    _timers.forEach(function(id){ clearTimeout(id); });
+    try{ delete window.evxSkip; }catch(e){ window.evxSkip = null; }
+  };
+}
+
+const INIT = { guardrails: initGuardrails, discovery: initDiscovery, assessment: initChat, gap: initGap, report: initReport, master: initMaster, evidence: initEvidenceChat };
   const fn = INIT[which];
   return typeof fn === "function" ? fn() : function(){};
 }

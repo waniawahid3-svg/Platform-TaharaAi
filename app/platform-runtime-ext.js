@@ -4,7 +4,7 @@
    HTML build. Everything runs inside run(), so it executes on mount when the
    markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
-import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl, generateClarifications, answerClarification } from "@/lib/govApi";
+import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl, generateClarifications, answerClarification, getCollectorEvidence } from "@/lib/govApi";
 import { getDiscoveryHealth, scan as discoveryScan } from "@/lib/discoveryApi";
 
 export function run(which){
@@ -2042,7 +2042,21 @@ function initMaster(){
         askDone:function(n){ return n === 1 ? "1 clarifying question proposed." : n + " clarifying questions proposed."; },
         clH:"AUDITOR'S CLARIFYING QUESTION", clWhy:"Proposed because the two models disagreed on this specific point:",
         clAnsPh:"Type the operator's answer…", clSubmit:"Record answer", clAnswered:"ANSWERED",
-        clAnsErr:"Could not record the answer: "
+        clAnsErr:"Could not record the answer: ",
+        coH:"WHAT THE COLLECTOR OBSERVED",
+        coNote:"Read-only evidence from AIGRC-Collector. Observed means the collector saw this; it does not mean the control is met.",
+        coMapA:"CONFIDENT MAPPING", coMapB:"ADJACENT MAPPING · PARTIAL AT MOST",
+        coFrom:function(w){ return "LATEST PULL · " + w; },
+        coNotPulled:"The collector has not been pulled for this engagement yet, so there is no observed evidence to show.",
+        coGoPull:"Open Pull evidence →",
+        coRepull:"This engagement was pulled before observed records were kept. Pull evidence again to see what the collector observed.",
+        coNoMod:"No collector module observes this control. Evidence for it has to come from documents or from a person.",
+        coGoChat:"Supply it in the Evidence chat →",
+        coNoRec:function(m){ return "Mapped to " + m + ", but the latest pull returned no record for it."; },
+        coErr:"Could not load the collector evidence: ",
+        coS:{observed:"OBSERVED", gap:"NOT OBSERVED", error:"ERROR"},
+        coM:{ok:"OK", partial:"PARTIAL", gap:"GAP", error:"ERROR"},
+        coCut:"shortened", coNoData:"No further detail recorded."
       },
       ar:{
         n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
@@ -2076,12 +2090,27 @@ function initMaster(){
         askDone:function(n){ return n === 1 ? "اقتُرح سؤال توضيحي واحد." : "اقتُرحت " + n + " أسئلة توضيحية."; },
         clH:"سؤال المدقق التوضيحي", clWhy:"اقتُرح لأن النموذجين اختلفا تحديدا في هذه النقطة:",
         clAnsPh:"اكتب إجابة المشغّل…", clSubmit:"تسجيل الإجابة", clAnswered:"تمت الإجابة",
-        clAnsErr:"تعذّر تسجيل الإجابة: "
+        clAnsErr:"تعذّر تسجيل الإجابة: ",
+        coH:"ما رصده المُجمّع",
+        coNote:"أدلة للقراءة فقط من AIGRC-Collector. «مرصود» تعني أن المُجمّع رآه، ولا تعني أن الضابط مستوفى.",
+        coMapA:"ربط مؤكد", coMapB:"ربط مجاور · جزئي كحد أقصى",
+        coFrom:function(w){ return "آخر سحب · " + w; },
+        coNotPulled:"لم يُسحب المُجمّع لهذا التقييم بعد، لذا لا توجد أدلة مرصودة لعرضها.",
+        coGoPull:"افتح سحب الأدلة ←",
+        coRepull:"سُحب هذا التقييم قبل حفظ السجلات المرصودة. اسحب الأدلة مجددا لرؤية ما رصده المُجمّع.",
+        coNoMod:"لا توجد وحدة في المُجمّع ترصد هذا الضابط. يجب أن تأتي أدلته من وثائق أو من شخص.",
+        coGoChat:"وفّرها في محادثة الأدلة ←",
+        coNoRec:function(m){ return "مرتبط بالوحدة " + m + "، لكن آخر سحب لم يُرجع أي سجل لها."; },
+        coErr:"تعذّر تحميل أدلة المُجمّع: ",
+        coS:{observed:"مرصود", gap:"غير مرصود", error:"خطأ"},
+        coM:{ok:"سليم", partial:"جزئي", gap:"فجوة", error:"خطأ"},
+        coCut:"مقتطع", coNoData:"لا توجد تفاصيل إضافية مسجّلة."
       }
     };
     var lang = "en";
     try{ var sl = localStorage.getItem("tahara-lang"); if(sl === "ar" || sl === "en") lang = sl; }catch(e){}
     var DATA = null, fwF = "all", stF = "all", q = "", shown = 60, PAGE = 60, eidCurrent = null;
+    var EVID = null, EVID_ERR = null;
     function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
     function $(id){ return document.getElementById(id); }
 
@@ -2166,9 +2195,49 @@ function initMaster(){
             '</form>') +
       '</div>';
     }
+    function fmtVal(v){
+      if(v === null || v === undefined) return "—";
+      if(typeof v === "string") return v;
+      if(typeof v !== "object") return String(v);
+      if(Array.isArray(v) && v.every(function(x){ return x === null || typeof x !== "object"; })) return v.map(fmtVal).join(", ") || "—";
+      var s = JSON.stringify(v);
+      return s.length > 240 ? s.slice(0, 240) + "…" : s;
+    }
+    function recordRow(r, d){
+      var keys = r.data ? Object.keys(r.data) : [];
+      var body = keys.length
+        ? '<dl class="mxco-kv">' + keys.map(function(k){ return '<dt class="keep">' + esc(k) + '</dt><dd class="keep">' + esc(fmtVal(r.data[k])) + '</dd>'; }).join("") + '</dl>'
+        : '<div class="mxco-nodata">' + esc(d.coNoData) + '</div>';
+      return '<details class="mxco-rec">' +
+        '<summary><span class="mxco-s s-' + esc(r.status) + '">' + esc(d.coS[r.status] || r.status) + '</span>' +
+        '<span class="mxco-subj keep">' + esc(r.subject) + '</span>' +
+        (r.detail ? '<span class="mxco-det">' + esc(r.detail) + '</span>' : '') +
+        (r.truncated ? '<i class="mxco-cut keep">' + esc(d.coCut) + '</i>' : '') + '</summary>' + body + '</details>';
+    }
+    function collectorBlock(c){
+      if(c.verdict !== "APPLICABLE") return "";
+      var d = T[lang], head = '<div class="mxevd-h">' + esc(d.coH) + '</div>';
+      var q1 = eidCurrent ? "?eid=" + encodeURIComponent(eidCurrent) : "";
+      if(EVID_ERR) return '<div class="mxco">' + head + '<div class="mxevd-empty">' + esc(d.coErr + EVID_ERR) + '</div></div>';
+      if(!EVID) return "";
+      if(!EVID.pulled) return '<div class="mxco">' + head + '<div class="mxevd-empty">' + esc(d.coNotPulled) + ' <a class="mxco-link" href="/gap' + q1 + '">' + esc(d.coGoPull) + '</a></div></div>';
+      if(!(EVID.records || []).length) return '<div class="mxco">' + head + '<div class="mxevd-empty">' + esc(d.coRepull) + ' <a class="mxco-link" href="/gap' + q1 + '">' + esc(d.coGoPull) + '</a></div></div>';
+      var mods = c.modules || [];
+      if(!mods.length) return '<div class="mxco">' + head + '<div class="mxevd-empty">' + esc(d.coNoMod) + ' <a class="mxco-link" href="/evidence' + q1 + '">' + esc(d.coGoChat) + '</a></div></div>';
+      var when = EVID.pulled_at ? new Date(EVID.pulled_at).toLocaleString() : "";
+      var meta = '<div class="mxco-meta keep">' + esc(c.mapping === "a" ? d.coMapA : d.coMapB) + (when ? ' · ' + esc(d.coFrom(when)) : '') + '</div>';
+      var groups = mods.map(function(m){
+        var recs = (EVID.records || []).filter(function(r){ return r.module === m; });
+        var ms = EVID.modules && EVID.modules[m];
+        return '<div class="mxco-mod"><span class="mxco-name keep">' + esc(m) + '</span>' +
+          (ms ? '<span class="mxco-chip m-' + esc(ms) + '">' + esc(d.coM[ms] || ms) + '</span>' : '') + '</div>' +
+          (recs.length ? recs.map(function(r){ return recordRow(r, d); }).join("") : '<div class="mxevd-empty">' + esc(d.coNoRec(m)) + '</div>');
+      }).join("");
+      return '<div class="mxco">' + head + '<div class="mxco-note">' + esc(d.coNote) + '</div>' + meta + groups + '</div>';
+    }
     function evidenceDetail(c){
       var d = T[lang];
-      var cl = clarificationBlock(c);
+      var cl = clarificationBlock(c) + collectorBlock(c);
       var ev = (!c.evidence || !c.evidence.length)
         ? '<div class="mxevd-empty">' + esc(d.evdNone) + '</div>'
         : '<div class="mxevd-h">' + esc(d.evdT) + '</div>' + c.evidence.map(function(it){
@@ -2275,6 +2344,7 @@ function initMaster(){
       var q1 = "?eid=" + encodeURIComponent(eid);
       $("mxBack").href = "/gap" + q1; $("mxDocsLink").href = "/gap" + q1; $("mxReportLink").href = "/report" + q1;
       $("mxIsmsLink").href = "/isms" + q1;
+      getCollectorEvidence(eid).then(function(ev){ EVID = ev; }).catch(function(err){ EVID_ERR = err.message; });
       try{ DATA = await getMaster(eid); paint(); }
       catch(err){ $("mxMeta").textContent = T[lang].err + err.message; }
     })();

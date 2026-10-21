@@ -4,7 +4,7 @@
    HTML build. Everything runs inside run(), so it executes on mount when the
    markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
-import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl, generateClarifications, answerClarification, getCollectorEvidence } from "@/lib/govApi";
+import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl, generateClarifications, answerClarification, getCollectorEvidence, getReadinessQuestions, answerReadinessQuestion } from "@/lib/govApi";
 import { getDiscoveryHealth, scan as discoveryScan } from "@/lib/discoveryApi";
 
 export function run(which){
@@ -2056,7 +2056,13 @@ function initMaster(){
         coErr:"Could not load the collector evidence: ",
         coS:{observed:"OBSERVED", gap:"NOT OBSERVED", error:"ERROR"},
         coM:{ok:"OK", partial:"PARTIAL", gap:"GAP", error:"ERROR"},
-        coCut:"shortened", coNoData:"No further detail recorded."
+        coCut:"shortened", coNoData:"No further detail recorded.",
+        rqH:"A QUESTION ABOUT YOUR SYSTEM", rqDraft:"DRAFT · NOT YET REVIEWED BY A COMPLIANCE PROFESSIONAL",
+        rqSeen:"WHAT THE COLLECTOR OBSERVED",
+        rqCovers:function(n){ return n === 1 ? "Your answer covers this control." : "Your answer covers " + n + " controls, in every framework that carries them."; },
+        rqNote:"Optional: name the document, tool or setting that shows this", rqSubmit:"Record answer",
+        rqAnswered:"ANSWERED", rqChange:"Change answer", rqErr:"Could not record the answer: ", rqPick:"Choose one answer first.",
+        rqAdvisory:"Advisory. This is your own statement about your system. It does not change the verdict and does not count toward compliance."
       },
       ar:{
         n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
@@ -2104,13 +2110,19 @@ function initMaster(){
         coErr:"تعذّر تحميل أدلة المُجمّع: ",
         coS:{observed:"مرصود", gap:"غير مرصود", error:"خطأ"},
         coM:{ok:"سليم", partial:"جزئي", gap:"فجوة", error:"خطأ"},
-        coCut:"مقتطع", coNoData:"لا توجد تفاصيل إضافية مسجّلة."
+        coCut:"مقتطع", coNoData:"لا توجد تفاصيل إضافية مسجّلة.",
+        rqH:"سؤال عن نظامك", rqDraft:"مسودة · لم يراجعها مختص امتثال بعد",
+        rqSeen:"ما رصده المُجمّع",
+        rqCovers:function(n){ return n === 1 ? "إجابتك تغطي هذا الضابط." : "إجابتك تغطي " + n + " ضوابط في كل إطار يتضمنها."; },
+        rqNote:"اختياري: اذكر المستند أو الأداة أو الإعداد الذي يثبت ذلك", rqSubmit:"تسجيل الإجابة",
+        rqAnswered:"تمت الإجابة", rqChange:"تغيير الإجابة", rqErr:"تعذّر تسجيل الإجابة: ", rqPick:"اختر إجابة أولا.",
+        rqAdvisory:"استشاري. هذا بيان منك عن نظامك. لا يغيّر القرار ولا يُحتسب ضمن الامتثال."
       }
     };
     var lang = "en";
     try{ var sl = localStorage.getItem("tahara-lang"); if(sl === "ar" || sl === "en") lang = sl; }catch(e){}
     var DATA = null, fwF = "all", stF = "all", q = "", shown = 60, PAGE = 60, eidCurrent = null;
-    var EVID = null, EVID_ERR = null;
+    var EVID = null, EVID_ERR = null, RQ = null;
     function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
     function $(id){ return document.getElementById(id); }
 
@@ -2235,9 +2247,40 @@ function initMaster(){
       }).join("");
       return '<div class="mxco">' + head + '<div class="mxco-note">' + esc(d.coNote) + '</div>' + meta + groups + '</div>';
     }
+    function readinessBlock(c){
+      var d = T[lang];
+      if(!RQ || c.verdict === "NOT_APPLICABLE") return "";
+      var t = (RQ.templates || []).find(function(x){
+        return x.controls.some(function(k){ return k.control_id === c.control_id; });
+      });
+      if(!t || t.state === "not_needed") return "";
+      var a = t.answer;
+      var seen = (t.observations || []).length
+        ? '<div class="mxrq-seen"><div class="mxrq-seenh keep">' + esc(d.rqSeen) + '</div><ul>' +
+            t.observations.map(function(o){ return '<li>' + esc(o.text) + '</li>'; }).join("") + '</ul></div>'
+        : "";
+      var opts = t.options.map(function(o){
+        return '<label class="mxrq-opt"><input type="radio" name="rq-' + esc(t.template_id) + '" value="' + esc(o.id) + '"' +
+          (a && a.option_id === o.id ? ' checked' : '') + '><span>' + esc(o.label) + '</span></label>';
+      }).join("");
+      return '<div class="mxrq" data-template="' + esc(t.template_id) + '">' +
+        '<div class="mxevd-h">' + esc(d.rqH) + (a ? ' <span class="mxcl-ans-tag">' + esc(d.rqAnswered) + '</span>' : '') + '</div>' +
+        (t.review_status !== "reviewed" ? '<div class="mxrq-draft keep">' + esc(d.rqDraft) + '</div>' : '') +
+        seen +
+        '<div class="mxcl-q">' + esc(t.question) + '</div>' +
+        '<form class="mxrq-form">' + opts +
+          '<input class="mxrq-note" type="text" maxlength="500" placeholder="' + esc(d.rqNote) + '" value="' + esc(a && a.evidence_note || "") + '">' +
+          (t.evidence_prompt ? '<div class="mxrq-hint">' + esc(t.evidence_prompt) + '</div>' : '') +
+          '<button class="btn-g" type="submit">' + esc(a ? d.rqChange : d.rqSubmit) + '</button>' +
+          '<span class="mxcl-msg keep" role="status" aria-live="polite"></span>' +
+        '</form>' +
+        '<div class="mxrq-cov">' + esc(d.rqCovers(t.controls_covered)) + '</div>' +
+        '<div class="mxcl-why keep">' + esc(d.rqAdvisory) + '</div>' +
+      '</div>';
+    }
     function evidenceDetail(c){
       var d = T[lang];
-      var cl = clarificationBlock(c) + collectorBlock(c);
+      var cl = clarificationBlock(c) + readinessBlock(c) + collectorBlock(c);
       var ev = (!c.evidence || !c.evidence.length)
         ? '<div class="mxevd-empty">' + esc(d.evdNone) + '</div>'
         : '<div class="mxevd-h">' + esc(d.evdT) + '</div>' + c.evidence.map(function(it){
@@ -2269,6 +2312,27 @@ function initMaster(){
       }catch(err){
         btn.disabled = false;
         msg.textContent = T[lang].clAnsErr + err.message; msg.classList.add("err");
+      }
+    });
+    $("mxRows").addEventListener("submit", async function(e){
+      var form = e.target.closest(".mxrq-form"); if(!form) return;
+      e.preventDefault();
+      var wrap = form.closest(".mxrq"), tid = wrap.getAttribute("data-template");
+      var msg = form.querySelector(".mxcl-msg"), pick = form.querySelector('input[type="radio"]:checked');
+      if(!pick){ msg.textContent = T[lang].rqPick; msg.classList.add("err"); return; }
+      var btn = form.querySelector("button"); btn.disabled = true;
+      try{
+        await answerReadinessQuestion(eidCurrent, tid, pick.value, form.querySelector(".mxrq-note").value.trim());
+        RQ = await getReadinessQuestions(eidCurrent);
+        var open = root.querySelector(".frow.open");
+        var cid = open && open.getAttribute("data-cid");
+        var c = cid && DATA.controls.find(function(x){ return x.control_id === cid; });
+        if(c && open.nextElementSibling && open.nextElementSibling.classList.contains("mxevd")){
+          open.nextElementSibling.outerHTML = evidenceDetail(c);
+        }
+      }catch(err){
+        btn.disabled = false;
+        msg.textContent = T[lang].rqErr + err.message; msg.classList.add("err");
       }
     });
     function paintRows(){
@@ -2346,7 +2410,9 @@ function initMaster(){
       $("mxIsmsLink").href = "/isms" + q1;
       getCollectorEvidence(eid).then(function(ev){ EVID = ev; }).catch(function(err){ EVID_ERR = err.message; });
       try{ DATA = await getMaster(eid); paint(); }
-      catch(err){ $("mxMeta").textContent = T[lang].err + err.message; }
+      catch(err){ $("mxMeta").textContent = T[lang].err + err.message; return; }
+      /* after the master view, so the cached report is reused instead of computed twice */
+      getReadinessQuestions(eid).then(function(r){ RQ = r; }).catch(function(){ RQ = null; });
     })();
     applyLang();
   } finally {

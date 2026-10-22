@@ -4,7 +4,7 @@
    HTML build. Everything runs inside run(), so it executes on mount when the
    markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
-import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl, generateClarifications, answerClarification, getCollectorEvidence, getReadinessQuestions, answerReadinessQuestion } from "@/lib/govApi";
+import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl, generateClarifications, answerClarification, getCollectorEvidence, getReadinessQuestions, answerReadinessQuestion, getControlBasis, findDocumentEvidence, makeScenarioQuestion, answerScenarioQuestion } from "@/lib/govApi";
 import { getDiscoveryHealth, scan as discoveryScan } from "@/lib/discoveryApi";
 
 export function run(which){
@@ -1077,6 +1077,15 @@ function initChat(){
       }).join("") + '</div>';
     }
 
+    function scenarioBlock(q){
+      if(!q.field_path) return "";
+      if(q.scenario && q.scenario.text){
+        return '<div class="scn" data-field="' + esc(q.field_path) + '"><div class="scn-h keep">AN EXAMPLE FOR YOUR SYSTEM · WRITTEN BY A LOCAL MODEL, NOT REVIEWED</div>' +
+          '<div class="scn-t">' + esc(q.scenario.text) + '</div><div class="scn-b keep">The question and answers above are what you are answering.</div></div>';
+      }
+      return '<div class="scn" data-field="' + esc(q.field_path) + '"><button type="button" class="scn-go">Make this concrete for my system</button></div>';
+    }
+
     function askCurrent(){
       var q = qqueue[qi];
       if(!q){ loadMoreQuestions(); return; }
@@ -1087,6 +1096,7 @@ function initChat(){
         esc(q.text) +
         (q.why_asked ? '<div class="why">' + esc(q.why_asked) + '</div>' : '') +
         extractedHint(q) +
+        scenarioBlock(q) +
         renderOptions(q) +
         (!q.options || !q.options.length || q.allow_freetext
           ? '<div class="why">' + (q.options && q.options.length ? 'Or type your own answer below.' : 'Type your answer below.') + '</div>'
@@ -1163,6 +1173,18 @@ function initChat(){
     });
 
     S.addEventListener("click", function(e){
+      var go = e.target.closest(".scn-go");
+      if(go){
+        var box = go.closest(".scn"), fp = box.getAttribute("data-field");
+        box.innerHTML = '<div class="scn-b keep">Writing an example for your system… this can take up to a minute.</div>';
+        makeScenarioQuestion(eid, {field_path: fp}).then(function(r){
+          box.innerHTML = (r && r.status === "ok" && r.text)
+            ? '<div class="scn-h keep">AN EXAMPLE FOR YOUR SYSTEM · WRITTEN BY A LOCAL MODEL, NOT REVIEWED</div><div class="scn-t">' + esc(r.text) +
+              '</div><div class="scn-b keep">The question and answers above are what you are answering.</div>'
+            : '<div class="scn-b keep">No specific example could be written from what is known. ' + esc((r && r.reason) || "") + ' The question above stands.</div>';
+        }).catch(function(err){ box.innerHTML = '<div class="scn-b keep">Could not write one: ' + esc(err.message) + '</div>'; });
+        return;
+      }
       var submitBtn = e.target.closest(".opt-submit");
       if(submitBtn){
         var q1 = qqueue[qi];
@@ -2062,7 +2084,20 @@ function initMaster(){
         rqCovers:function(n){ return n === 1 ? "Your answer covers this control." : "Your answer covers " + n + " controls, in every framework that carries them."; },
         rqNote:"Optional: name the document, tool or setting that shows this", rqSubmit:"Record answer",
         rqAnswered:"ANSWERED", rqChange:"Change answer", rqErr:"Could not record the answer: ", rqPick:"Choose one answer first.",
-        rqAdvisory:"Advisory. This is your own statement about your system. It does not change the verdict and does not count toward compliance."
+        rqAdvisory:"Advisory. This is your own statement about your system. It does not change the verdict and does not count toward compliance.",
+        gnH:"A QUESTION WRITTEN FOR YOUR SYSTEM",
+        gnDraft:function(m){ return "WRITTEN BY A LOCAL MODEL (" + (m || "model") + ") FROM THESE FACTS · NOT REVIEWED"; },
+        gnBased:function(n){ return "Based on " + n + " fact(s) about your system"; },
+        gnMake:"Write a question about my system", gnMaking:"Writing a question for your system… this can take up to a minute.",
+        gnRedo:"Write a different one", gnNone:"No specific question could be written from what is known, so the general question stands.",
+        gnErr:"Could not write one: ",
+        bsH:"WHAT THIS JUDGEMENT RESTS ON", bsLoading:"Loading what this rests on…", bsErr:"Could not load it: ",
+        bsNone:"Nothing has been recorded for this control yet.", bsFacts:"FACTS USED", bsAsked:"You were asked",
+        bsScan:"Observed by", bsConf:"confidence", bsDoc:"IN YOUR DOCUMENTS", bsSearch:"Search my documents",
+        bsSearching:"Searching your documents… this can take up to a minute.",
+        bsFound:"FOUND · MODEL-JUDGED, QUOTE VERIFIED IN THE DOCUMENT", bsPartial:"PARTLY STATED · MODEL-JUDGED, QUOTE VERIFIED IN THE DOCUMENT",
+        bsNotSearched:"Not searched yet.", bsNoDocs:"No document text is stored for this engagement. Upload the documents again on the gap assessment page to search them.",
+        bsAnswers:"WHAT YOU SAID", bsUploads:"WHAT YOU UPLOADED", bsModelW:"WRITTEN BY A MODEL", bsErrSearch:"Could not search: "
       },
       ar:{
         n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
@@ -2116,13 +2151,26 @@ function initMaster(){
         rqCovers:function(n){ return n === 1 ? "إجابتك تغطي هذا الضابط." : "إجابتك تغطي " + n + " ضوابط في كل إطار يتضمنها."; },
         rqNote:"اختياري: اذكر المستند أو الأداة أو الإعداد الذي يثبت ذلك", rqSubmit:"تسجيل الإجابة",
         rqAnswered:"تمت الإجابة", rqChange:"تغيير الإجابة", rqErr:"تعذّر تسجيل الإجابة: ", rqPick:"اختر إجابة أولا.",
-        rqAdvisory:"استشاري. هذا بيان منك عن نظامك. لا يغيّر القرار ولا يُحتسب ضمن الامتثال."
+        rqAdvisory:"استشاري. هذا بيان منك عن نظامك. لا يغيّر القرار ولا يُحتسب ضمن الامتثال.",
+        gnH:"سؤال كُتب لنظامك",
+        gnDraft:function(m){ return "كتبه نموذج محلي (" + (m || "نموذج") + ") من هذه الوقائع · لم يُراجع"; },
+        gnBased:function(n){ return "مبني على " + n + " من الوقائع عن نظامك"; },
+        gnMake:"اكتب سؤالا عن نظامي", gnMaking:"جارٍ كتابة سؤال لنظامك… قد يستغرق حتى دقيقة.",
+        gnRedo:"اكتب سؤالا آخر", gnNone:"تعذّر كتابة سؤال محدد مما هو معروف، فيبقى السؤال العام.",
+        gnErr:"تعذّرت الكتابة: ",
+        bsH:"ما يستند إليه هذا الحكم", bsLoading:"جارٍ تحميل ما يستند إليه…", bsErr:"تعذّر التحميل: ",
+        bsNone:"لم يُسجَّل شيء لهذا الضابط بعد.", bsFacts:"الوقائع المستخدمة", bsAsked:"سُئلتَ",
+        bsScan:"رصدها", bsConf:"الثقة", bsDoc:"في وثائقك", bsSearch:"ابحث في وثائقي",
+        bsSearching:"جارٍ البحث في وثائقك… قد يستغرق حتى دقيقة.",
+        bsFound:"وُجد · حكم النموذج والاقتباس مُتحقَّق منه في الوثيقة", bsPartial:"مذكور جزئيا · حكم النموذج والاقتباس مُتحقَّق منه في الوثيقة",
+        bsNotSearched:"لم يُبحث بعد.", bsNoDocs:"لا يوجد نص وثائق محفوظ لهذا التقييم. أعد رفع الوثائق في صفحة تقييم الفجوات للبحث فيها.",
+        bsAnswers:"ما قلتَه", bsUploads:"ما رفعتَه", bsModelW:"كتبه نموذج", bsErrSearch:"تعذّر البحث: "
       }
     };
     var lang = "en";
     try{ var sl = localStorage.getItem("tahara-lang"); if(sl === "ar" || sl === "en") lang = sl; }catch(e){}
     var DATA = null, fwF = "all", stF = "all", q = "", shown = 60, PAGE = 60, eidCurrent = null;
-    var EVID = null, EVID_ERR = null, RQ = null;
+    var EVID = null, EVID_ERR = null, RQ = null, BASIS = {}, BUSY = {};
     function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
     function $(id){ return document.getElementById(id); }
 
@@ -2247,7 +2295,7 @@ function initMaster(){
       }).join("");
       return '<div class="mxco">' + head + '<div class="mxco-note">' + esc(d.coNote) + '</div>' + meta + groups + '</div>';
     }
-    function readinessBlock(c){
+    function templateBlock(c){
       var d = T[lang];
       if(!RQ || c.verdict === "NOT_APPLICABLE") return "";
       var t = (RQ.templates || []).find(function(x){
@@ -2278,9 +2326,121 @@ function initMaster(){
         '<div class="mxcl-why keep">' + esc(d.rqAdvisory) + '</div>' +
       '</div>';
     }
+    function generatedBlock(c){
+      var d = T[lang], sc = c.scenario, a = c.readiness && c.readiness.generated ? c.readiness : null;
+      var based = (sc.grounded_on || []).length
+        ? '<details class="mxrq-based"><summary class="keep">' + esc(d.gnBased(sc.grounded_on.length)) + '</summary><ul>' +
+            sc.grounded_on.map(function(g){ return '<li class="keep">' + esc(g.text) + '</li>'; }).join("") + '</ul></details>'
+        : "";
+      var opts = (sc.options || []).map(function(o){
+        return '<label class="mxrq-opt"><input type="radio" name="gq-' + esc(sc.key) + '" value="' + esc(o.id) + '"' +
+          (a && a.option_id === o.id ? ' checked' : '') + '><span>' + esc(o.label) + '</span></label>';
+      }).join("");
+      return '<div class="mxrq" data-skey="' + esc(sc.key) + '">' +
+        '<div class="mxevd-h">' + esc(d.gnH) + (a ? ' <span class="mxcl-ans-tag">' + esc(d.rqAnswered) + '</span>' : '') + '</div>' +
+        '<div class="mxrq-draft keep">' + esc(d.gnDraft(sc.model)) + '</div>' + based +
+        '<div class="mxcl-q">' + esc(sc.text) + '</div>' +
+        '<form class="mxrq-form">' + opts +
+          '<input class="mxrq-note" type="text" maxlength="500" placeholder="' + esc(d.rqNote) + '">' +
+          '<button class="btn-g" type="submit">' + esc(a ? d.rqChange : d.rqSubmit) + '</button>' +
+          '<span class="mxcl-msg keep" role="status" aria-live="polite"></span>' +
+        '</form>' +
+        '<div class="mxrq-cov">' + esc(d.rqCovers((c.scenario && c.scenario.key) ? (RQCOV(c)) : 1)) + '</div>' +
+        '<div class="mxcl-why keep">' + esc(d.rqAdvisory) + '</div>' +
+      '</div>';
+    }
+    function RQCOV(c){
+      var key = c.scenario.key;
+      return DATA.controls.filter(function(x){ return x.scenario && x.scenario.key === key && x.verdict !== "NOT_APPLICABLE"; }).length || 1;
+    }
+    function genActions(c){
+      var d = T[lang], sc = c.scenario;
+      if(c.verdict === "NOT_APPLICABLE") return "";
+      if(BUSY["gen:" + c.control_id]) return '<div class="mxrq-gen-row"><span class="mxcl-msg keep">' + esc(d.gnMaking) + '</span></div>';
+      var err = BUSY["generr:" + c.control_id];
+      var note = err ? '<div class="mxcl-msg err keep">' + esc(d.gnErr + err) + '</div>'
+        : (sc && sc.status === "none" ? '<div class="mxrq-hint">' + esc(d.gnNone) + ' <span class="keep">' + esc(sc.reason || "") + '</span></div>' : "");
+      return '<div class="mxrq-gen-row" data-control="' + esc(c.control_id) + '">' + note +
+        '<button type="button" class="btn-g mxrq-gen">' + esc(sc && sc.status === "ok" ? d.gnRedo : d.gnMake) + '</button></div>';
+    }
+    function readinessBlock(c){
+      var main = (c.scenario && c.scenario.status === "ok") ? generatedBlock(c) : templateBlock(c);
+      return main + genActions(c);
+    }
+    function bsFact(f, d){
+      var q = f.document && f.document.quote
+        ? '<blockquote class="mxbs-quote keep">“' + esc(f.document.quote) + '”<cite class="keep">' + esc(f.document.name) +
+          (f.document.page ? ', p.' + esc(f.document.page) : '') + ' · ' + esc(d.bsConf) + ' ' + Math.round((f.confidence || 0) * 100) + '%</cite></blockquote>'
+        : "";
+      var asked = f.answer && f.answer.question_asked
+        ? '<div class="mxbs-asked">' + esc(d.bsAsked) + ': <span class="keep">' + esc(f.answer.question_asked) + '</span></div>' : "";
+      var scan = f.scan ? '<div class="mxbs-asked">' + esc(d.bsScan) + ' <span class="keep">' + esc(f.scan.tool) + '</span></div>' : "";
+      return '<div class="mxbs-f"><div class="mxbs-q">' + esc(f.question) + '</div>' +
+        '<div class="mxbs-v"><b class="keep">' + esc(fmtVal(f.value)) + '</b><span class="mxbs-chip s-' + esc(f.status) + '">' + esc(f.trust) + '</span></div>' +
+        q + asked + scan + '</div>';
+    }
+    function basisBlock(c){
+      var d = T[lang];
+      if(c.verdict === "NOT_APPLICABLE") return "";
+      var b = BASIS[c.control_id], head = '<div class="mxevd-h">' + esc(d.bsH) + '</div>';
+      if(b === undefined) return '<div class="mxbs">' + head + '<div class="mxevd-empty">' + esc(d.bsLoading) + '</div></div>';
+      if(b.error) return '<div class="mxbs">' + head + '<div class="mxevd-empty">' + esc(d.bsErr + b.error) + '</div></div>';
+      var parts = [];
+      if((b.facts || []).length) parts.push('<div class="mxbs-sub keep">' + esc(d.bsFacts) + '</div>' + b.facts.map(function(f){ return bsFact(f, d); }).join(""));
+
+      var de = b.document_evidence, busy = BUSY["doc:" + c.control_id], derr = BUSY["docerr:" + c.control_id], body;
+      if(busy) body = '<div class="mxevd-empty">' + esc(d.bsSearching) + '</div>';
+      else if(de && (de.status === "found" || de.status === "partial"))
+        body = '<blockquote class="mxbs-quote keep">“' + esc(de.quote) + '”<cite class="keep">' + esc(de.doc_id) + ', p.' + esc(de.page) + '</cite></blockquote>' +
+               '<div class="mxbs-tag keep">' + esc(de.status === "found" ? d.bsFound : d.bsPartial) + '</div><div class="mxrq-hint">' + esc(de.reason) + '</div>';
+      else if(de) body = '<div class="mxevd-empty">' + esc(de.reason) + '</div>';
+      else body = '<div class="mxevd-empty">' + esc(b.documents_stored ? d.bsNotSearched : d.bsNoDocs) + '</div>';
+      parts.push('<div class="mxbs-sub keep">' + esc(d.bsDoc) + '</div>' + body +
+        (derr ? '<div class="mxcl-msg err keep">' + esc(d.bsErrSearch + derr) + '</div>' : '') +
+        (busy ? '' : '<button type="button" class="btn-g mxbs-search"' + (b.documents_stored ? '' : ' disabled') + '>' + esc(d.bsSearch) + '</button>'));
+
+      if((b.answers || []).length) parts.push('<div class="mxbs-sub keep">' + esc(d.bsAnswers) + '</div>' + b.answers.map(function(a){
+        return '<div class="mxbs-f"><div class="mxbs-q">' + esc(a.question) + '</div><div class="mxbs-v"><b>' + esc(a.answer) + '</b>' +
+          (a.model_written ? '<span class="mxbs-chip keep">' + esc(d.bsModelW) + '</span>' : '') + '</div>' +
+          (a.note ? '<div class="mxbs-asked keep">' + esc(a.note) + '</div>' : '') + '</div>';
+      }).join(""));
+      if((b.uploads || []).length) parts.push('<div class="mxbs-sub keep">' + esc(d.bsUploads) + '</div>' + b.uploads.map(function(u){
+        return '<div class="mxbs-asked keep">' + esc(u.filename) + ' · ' + esc(new Date(u.uploaded_at).toLocaleString()) + '</div>';
+      }).join(""));
+      return '<div class="mxbs" data-control="' + esc(c.control_id) + '">' + head + '<div class="mxco-note">' + esc(b.note || "") + '</div>' + parts.join("") + '</div>';
+    }
+    function refreshDetail(cid){
+      var c = DATA.controls.find(function(x){ return x.control_id === cid; });
+      var row = root.querySelector('.frow[data-cid="' + cid.replace(/"/g,'\\"') + '"]');
+      if(c && row && row.nextElementSibling && row.nextElementSibling.classList.contains("mxevd")) row.nextElementSibling.outerHTML = evidenceDetail(c);
+    }
+    async function loadBasis(cid, force){
+      if(!force && BASIS[cid] !== undefined) return;
+      try{ BASIS[cid] = await getControlBasis(eidCurrent, cid); }catch(err){ BASIS[cid] = {error: err.message}; }
+      refreshDetail(cid);
+    }
+    $("mxRows").addEventListener("click", async function(e){
+      var g = e.target.closest(".mxrq-gen"), sbtn = e.target.closest(".mxbs-search");
+      if(!g && !sbtn) return;
+      var cid = (g || sbtn).closest("[data-control]").getAttribute("data-control");
+      var c = DATA.controls.find(function(x){ return x.control_id === cid; }); if(!c) return;
+      if(g){
+        BUSY["gen:" + cid] = true; delete BUSY["generr:" + cid]; refreshDetail(cid);
+        try{
+          await makeScenarioQuestion(eidCurrent, {control_id: cid, force: !!(c.scenario && c.scenario.status)});
+          DATA = await getMaster(eidCurrent);
+        }catch(err){ BUSY["generr:" + cid] = err.message; }
+        delete BUSY["gen:" + cid]; refreshDetail(cid);
+      }else{
+        BUSY["doc:" + cid] = true; delete BUSY["docerr:" + cid]; refreshDetail(cid);
+        try{ await findDocumentEvidence(eidCurrent, cid, true); await loadBasis(cid, true); }
+        catch(err){ BUSY["docerr:" + cid] = err.message; }
+        delete BUSY["doc:" + cid]; refreshDetail(cid);
+      }
+    });
     function evidenceDetail(c){
       var d = T[lang];
-      var cl = clarificationBlock(c) + readinessBlock(c) + collectorBlock(c);
+      var cl = clarificationBlock(c) + readinessBlock(c) + basisBlock(c) + collectorBlock(c);
       var ev = (!c.evidence || !c.evidence.length)
         ? '<div class="mxevd-empty">' + esc(d.evdNone) + '</div>'
         : '<div class="mxevd-h">' + esc(d.evdT) + '</div>' + c.evidence.map(function(it){
@@ -2317,18 +2477,20 @@ function initMaster(){
     $("mxRows").addEventListener("submit", async function(e){
       var form = e.target.closest(".mxrq-form"); if(!form) return;
       e.preventDefault();
-      var wrap = form.closest(".mxrq"), tid = wrap.getAttribute("data-template");
+      var wrap = form.closest(".mxrq"), tid = wrap.getAttribute("data-template"), skey = wrap.getAttribute("data-skey");
       var msg = form.querySelector(".mxcl-msg"), pick = form.querySelector('input[type="radio"]:checked');
       if(!pick){ msg.textContent = T[lang].rqPick; msg.classList.add("err"); return; }
       var btn = form.querySelector("button"); btn.disabled = true;
       try{
-        await answerReadinessQuestion(eidCurrent, tid, pick.value, form.querySelector(".mxrq-note").value.trim());
-        RQ = await getReadinessQuestions(eidCurrent);
+        var noteTxt = form.querySelector(".mxrq-note").value.trim();
+        if(skey){ await answerScenarioQuestion(eidCurrent, skey, pick.value, noteTxt); DATA = await getMaster(eidCurrent); BASIS = {}; }
+        else { await answerReadinessQuestion(eidCurrent, tid, pick.value, noteTxt); RQ = await getReadinessQuestions(eidCurrent); BASIS = {}; }
         var open = root.querySelector(".frow.open");
         var cid = open && open.getAttribute("data-cid");
         var c = cid && DATA.controls.find(function(x){ return x.control_id === cid; });
         if(c && open.nextElementSibling && open.nextElementSibling.classList.contains("mxevd")){
           open.nextElementSibling.outerHTML = evidenceDetail(c);
+          loadBasis(cid, true);
         }
       }catch(err){
         btn.disabled = false;
@@ -2363,6 +2525,7 @@ function initMaster(){
       if(!c) return;
       row.insertAdjacentHTML("afterend", evidenceDetail(c));
       row.classList.add("open"); openRow = cid;
+      loadBasis(cid);
     });
     $("mxRows").addEventListener("keydown", function(e){
       if(e.key !== "Enter" && e.key !== " ") return;

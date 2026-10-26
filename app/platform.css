@@ -3632,3 +3632,12 @@ html[data-theme="dark"] .rpx .crumb{color:#7A8BA3}
 
 .gpx .scn-caution{font-size:11.5px;line-height:1.5;color:var(--amber);margin-top:6px}
 .gpx.mfx .mxrq-caution{font-size:11.5px;line-height:1.5;color:var(--amber);margin:2px 0 8px}
+
+.gpx .scn-skip{font:inherit;font-size:12px;margin-top:8px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-3);cursor:pointer}
+.gpx .scn-skip:hover{border-color:var(--acc);color:var(--ink)}
+
+.gpx .scn-skipall{font:inherit;font-size:12px;margin-top:8px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-3);cursor:pointer}
+.gpx .scn-skipall:hover{border-color:var(--acc);color:var(--ink)}
+
+.gpx.mfx .mxbs-differs{color:var(--amber)}
+.gpx.mfx .mxbs-differs .mxbs-tag{color:var(--amber)}

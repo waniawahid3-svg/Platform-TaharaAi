@@ -4,7 +4,7 @@
    HTML build. Everything runs inside run(), so it executes on mount when the
    markup is in the DOM. Each init returns a dispose that unwinds itself. */
 
-import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl, generateClarifications, answerClarification, getCollectorEvidence, getReadinessQuestions, answerReadinessQuestion, getControlBasis, findDocumentEvidence, makeScenarioQuestion, answerScenarioQuestion } from "@/lib/govApi";
+import { openEngagement, uploadDocuments, getDocumentsStatus, getQuestions, submitAnswers, getReport, pullEvidence, startIsmsPackage, getIsmsPackage, ismsFileUrl, ismsZipUrl, getMaster, getEvidenceRequests, uploadEvidence, evidenceUploadFileUrl, generateClarifications, answerClarification, getCollectorEvidence, getReadinessQuestions, answerReadinessQuestion, getControlBasis, findDocumentEvidence, makeScenarioQuestion, answerScenarioQuestion, answerFieldScenario } from "@/lib/govApi";
 import { getDiscoveryHealth, scan as discoveryScan } from "@/lib/discoveryApi";
 
 export function run(which){
@@ -897,6 +897,12 @@ function initChat(){
     var coverage = null;     // real coverage object, refreshed after every real call
     var qqueue = [];         // current real batch from GET /questions
     var qi = 0;              // index into qqueue
+    var scnPending = {};     // field_path -> the promise of its scenario (the local model writes them ahead)
+    var scnResult = {};      // field_path -> the scenario response once written
+    var scnChain = Promise.resolve();
+    var batchAnswered = [];  // library questions answered in this batch: {q, value}
+    var scnCur = null;       // the scenario follow-up on screen: {q, item, resolve}
+    function curQ(){ return scnCur ? scnCur.q : qqueue[qi]; }
     var askedCount = 0;      // how many real questions have actually been shown -- not a fixed 15
     // Real count of fields the extraction pipeline actually pulled from the uploaded
     // documents (result.fields_extracted from POST .../documents). coverage.established
@@ -1094,13 +1100,26 @@ function initChat(){
         : '<div class="scn-h keep">AN EXAMPLE FOR YOUR SYSTEM</div><div class="scn-b keep">Writing an example for your system… you can answer without waiting.</div>';
       return '<div class="scn" data-field="' + esc(q.field_path) + '">' + inner + '</div>';
     }
+    function ensureScenario(q){
+      var fp = q && q.field_path; if(!fp) return Promise.resolve(null);
+      if(scnResult[fp]) return Promise.resolve(scnResult[fp]);
+      if(q.scenario && q.scenario.text){ scnResult[fp] = Object.assign({status: "ok"}, q.scenario); return Promise.resolve(scnResult[fp]); }
+      if(!scnPending[fp]){
+        /* queued behind the earlier ones, so requests run one at a time in the order the questions come */
+        scnPending[fp] = scnChain = scnChain.then(function(){ return makeScenarioQuestion(eid, {field_path: fp}); })
+          .then(function(r){ scnResult[fp] = r; return r; })
+          .catch(function(err){ delete scnPending[fp]; return {status: "none", reason: err.message}; });
+      }
+      return scnPending[fp];
+    }
+    /* queue the whole batch's scenarios as soon as the batch arrives */
+    function prefetchScenarios(list){ (list || []).forEach(function(q){ ensureScenario(q); }); }
     /* the local model writes it NOW, for the tool being assessed; the library question above is untouched */
     function autoScenario(q){
       if(!q || !q.field_path || (q.scenario && q.scenario.text)) return;
       var boxes = S.querySelectorAll('.scn[data-field="' + q.field_path.replace(/"/g, '\\"') + '"]');
       var box = boxes[boxes.length - 1]; if(!box) return;
-      makeScenarioQuestion(eid, {field_path: q.field_path}).then(function(r){ box.innerHTML = scnFilled(r); })
-        .catch(function(err){ box.innerHTML = '<div class="scn-b keep">Could not write one: ' + esc(err.message) + '</div><button type="button" class="scn-go">Try again</button>'; });
+      ensureScenario(q).then(function(r){ box.innerHTML = scnFilled(r); });
     }
 
     function askCurrent(){
@@ -1120,6 +1139,79 @@ function initChat(){
           : '')
       );
       autoScenario(q);
+    }
+
+    function dropSkip(){ S.querySelectorAll(".scn-skip").forEach(function(b){ b.remove(); }); }
+
+    function askScenario(item){
+      return new Promise(function(resolve){
+        var pq = Object.assign({}, item.q, {qid: item.q.qid + "#scenario", text: item.scenario.text,
+          options: (item.q.options || []).map(function(o){ return Object.assign({}, o, {negates: false}); })});
+        scnCur = {q: pq, item: item, resolve: resolve};
+        bot(
+          '<div class="qh"><span class="qn keep">IN YOUR SITUATION</span><span class="qt keep">SAME POINT AS ' + esc(item.q.field_path) + '</span></div>' +
+          esc(item.scenario.text) +
+          (item.scenario.caution ? '<div class="scn-caution keep">Check this question: ' + esc(item.scenario.caution) + '.</div>' : '') +
+          '<div class="why">Same answers as before. This only checks your first answer, which stays as recorded.</div>' +
+          renderOptions(pq) +
+          '<button type="button" class="scn-skip">Skip this one</button>'
+        );
+      });
+    }
+
+    async function answerScenarioFollowup(option){
+      var cur = scnCur; if(!cur) return;
+      var isMulti = Array.isArray(option);
+      var label = isMulti ? option.map(function(o){ return o.label; }).join(", ") : option.label;
+      var value = isMulti ? option.reduce(function(acc, o){ return acc.concat(o.value); }, []) : option.value;
+      me(esc(label)); clearLiveOptions(); dropSkip(); scnCur = null; typing();
+      try{
+        var rec = await answerFieldScenario(eid, {field_path: cur.item.q.field_path, value: value, option_label: label});
+        untype();
+        if(rec.consistent === false){
+          function labelOf(v){
+            var key = JSON.stringify(v), hit = (cur.item.q.options || []).filter(function(o){ return JSON.stringify(o.value) === key; })[0];
+            return hit ? esc(hit.label) : fmtVal(v);
+          }
+          bot('<b>These two answers differ.</b> The first question was recorded as <span class="keep">' + labelOf(rec.library_value) +
+              '</span>; this one says <span class="keep">' + labelOf(rec.value) + '</span>. Your first answer stays as recorded. The difference is noted beside the evidence so it can be looked at again.');
+        } else if(rec.consistent === true){
+          bot('Consistent with your first answer.');
+        }
+      }catch(err){
+        untype();
+        bot('⚠ <b>Could not record that answer:</b> ' + esc(err.message));
+      }
+      cur.resolve();
+    }
+
+    /* the batch's library questions are answered; ask the same points again as scenarios for THIS tool */
+    var scnSkipResolve = null;
+    async function scenarioRound(){
+      var items = batchAnswered; batchAnswered = [];
+      if(!items.length) return;
+      var skipped = false, asked = 0, waitMsg = null;
+      var skipP = new Promise(function(res){ scnSkipResolve = function(){ skipped = true; res(null); }; });
+      function dropWait(){ if(waitMsg){ waitMsg.remove(); waitMsg = null; } }
+      for(var i = 0; i < items.length && !skipped; i++){
+        var r = scnResult[items[i].q.field_path];
+        if(!r){
+          dropWait();
+          waitMsg = bot('<b>Writing the scenario version of your answers for this kind of tool…</b> ' + (i + 1) + ' of ' + items.length +
+                        '. Each takes about a minute.<div><button type="button" class="scn-skipall">Skip the scenario questions</button></div>');
+          r = await Promise.race([ensureScenario(items[i].q), skipP]);
+          dropWait();
+        }
+        if(skipped) break;
+        if(r && r.status === "ok" && r.text){
+          if(!asked){
+            bot('<b>Now the same points, as situations for your tool.</b> Written by a local model for this kind of tool. Your first answers stay as recorded; these check them.');
+          }
+          asked++;
+          await askScenario({q: items[i].q, value: items[i].value, scenario: r});
+        }
+      }
+      dropWait(); scnSkipResolve = null;
     }
 
     function clearLiveOptions(){
@@ -1157,7 +1249,10 @@ function initChat(){
         untype();
         coverage = res.coverage;
         upd();
+        if(value !== null && value !== undefined) batchAnswered.push({q: q, value: value});
         qi++;
+        /* the library questions of this batch are done: ask the same points once more, as scenarios for this tool */
+        if(res.complete || qi >= qqueue.length){ await scenarioRound(); }
         if(res.complete){ await finish(); return; }
         askCurrent();
       }catch(err){
@@ -1174,7 +1269,7 @@ function initChat(){
     S.addEventListener("change", function(e){
       var cb = e.target.closest('.opts-multi input[type="checkbox"]');
       if(!cb) return;
-      var q = qqueue[qi];
+      var q = curQ();
       if(!q || !q.options) return;
       var container = cb.closest(".opts-multi");
       var boxes = Array.prototype.slice.call(container.querySelectorAll('input[type="checkbox"]'));
@@ -1191,24 +1286,32 @@ function initChat(){
     });
 
     S.addEventListener("click", function(e){
+      var skipAll = e.target.closest(".scn-skipall");
+      if(skipAll){ if(scnSkipResolve) scnSkipResolve(); return; }
+      var skip = e.target.closest(".scn-skip");
+      if(skip){
+        var cur = scnCur; scnCur = null; clearLiveOptions(); dropSkip();
+        if(cur) cur.resolve();
+        return;
+      }
       var go = e.target.closest(".scn-go");
       if(go){
         var box = go.closest(".scn"), fp = box.getAttribute("data-field");
         box.innerHTML = '<div class="scn-h keep">AN EXAMPLE FOR YOUR SYSTEM</div><div class="scn-b keep">Writing an example for your system… this can take up to a minute.</div>';
-        makeScenarioQuestion(eid, {field_path: fp, force: true}).then(function(r){ box.innerHTML = scnFilled(r); })
+        makeScenarioQuestion(eid, {field_path: fp, force: true}).then(function(r){ scnResult[fp] = r; box.innerHTML = scnFilled(r); })
           .catch(function(err){ box.innerHTML = '<div class="scn-b keep">Could not write one: ' + esc(err.message) + '</div><button type="button" class="scn-go">Try again</button>'; });
         return;
       }
       var submitBtn = e.target.closest(".opt-submit");
       if(submitBtn){
-        var q1 = qqueue[qi];
+        var q1 = curQ();
         if(!q1 || !q1.options) return;
         var container = submitBtn.closest(".opts-multi");
         var checked = Array.prototype.slice.call(container.querySelectorAll('input[type="checkbox"]:checked'));
         var selected = checked.map(function(cb){
           return q1.options[parseInt(cb.getAttribute("data-i"), 10)];
         }).filter(Boolean);
-        answerReal(q1, selected, null);
+        if(scnCur) answerScenarioFollowup(selected); else answerReal(q1, selected, null);
         return;
       }
       // Checkbox rows toggle only -- the actual submit happens on .opt-submit,
@@ -1216,10 +1319,10 @@ function initChat(){
       if(e.target.closest(".opt-check")) return;
       var o = e.target.closest(".opt");
       if(!o) return;
-      var q = qqueue[qi];
+      var q = curQ();
       if(!q || !q.options) return;
       var ix = parseInt(o.getAttribute("data-i"), 10) || 0;
-      answerReal(q, q.options[ix], null);
+      if(scnCur) answerScenarioFollowup(q.options[ix]); else answerReal(q, q.options[ix], null);
     });
 
     async function loadMoreQuestions(){
@@ -1248,7 +1351,9 @@ function initChat(){
         upd();
         qqueue = data.questions || [];
         qi = 0;
+        batchAnswered = [];
         if(data.complete || qqueue.length === 0){ await finish(); return; }
+        prefetchScenarios(qqueue);
         askCurrent();
       }catch(err){
         untype();
@@ -1410,6 +1515,7 @@ function initChat(){
       var i = document.getElementById("ci");
       var v = i.value.trim();
       if(!v) return;
+      if(scnCur){ i.value = ""; bot('Pick one of the answers above for this situation, or press <b>Skip this one</b>.'); return; }
       var q = qqueue[qi];
       if(!q){ i.value = ""; return; }
       i.value = "";
@@ -2111,7 +2217,8 @@ function initMaster(){
         bsSearching:"Searching your documents… this can take up to a minute.",
         bsFound:"FOUND · MODEL-JUDGED, QUOTE VERIFIED IN THE DOCUMENT", bsPartial:"PARTLY STATED · MODEL-JUDGED, QUOTE VERIFIED IN THE DOCUMENT",
         bsNotSearched:"Not searched yet.", bsNoDocs:"No document text is stored for this engagement. Upload the documents again on the gap assessment page to search them.",
-        bsAnswers:"WHAT YOU SAID", bsUploads:"WHAT YOU UPLOADED", bsModelW:"WRITTEN BY A MODEL", bsErrSearch:"Could not search: "
+        bsAnswers:"WHAT YOU SAID", bsUploads:"WHAT YOU UPLOADED", bsModelW:"WRITTEN BY A MODEL", bsErrSearch:"Could not search: ",
+        bsCheck:"Asked a second way, for this tool", bsAgree:"AGREES WITH THE ANSWER ABOVE", bsDiffer:"DIFFERS FROM THE ANSWER ABOVE · LOOK AT IT AGAIN", bsNoCmp:"NOT COMPARED"
       },
       ar:{
         n1:"نظرة عامة",n2:"الحوكمة",n3:"الأُطر",n4:"الاستكشاف",n5:"الاختبار العدائي",n6:"حواجز الحماية",signout:"تسجيل الخروج",
@@ -2178,7 +2285,8 @@ function initMaster(){
         bsSearching:"جارٍ البحث في وثائقك… قد يستغرق حتى دقيقة.",
         bsFound:"وُجد · حكم النموذج والاقتباس مُتحقَّق منه في الوثيقة", bsPartial:"مذكور جزئيا · حكم النموذج والاقتباس مُتحقَّق منه في الوثيقة",
         bsNotSearched:"لم يُبحث بعد.", bsNoDocs:"لا يوجد نص وثائق محفوظ لهذا التقييم. أعد رفع الوثائق في صفحة تقييم الفجوات للبحث فيها.",
-        bsAnswers:"ما قلتَه", bsUploads:"ما رفعتَه", bsModelW:"كتبه نموذج", bsErrSearch:"تعذّر البحث: "
+        bsAnswers:"ما قلتَه", bsUploads:"ما رفعتَه", bsModelW:"كتبه نموذج", bsErrSearch:"تعذّر البحث: ",
+        bsCheck:"سُئل بطريقة ثانية لهذه الأداة", bsAgree:"يتفق مع الإجابة أعلاه", bsDiffer:"يختلف عن الإجابة أعلاه · أعد النظر فيه", bsNoCmp:"لم تُقارن"
       }
     };
     var lang = "en";
@@ -2391,9 +2499,14 @@ function initMaster(){
       var asked = f.answer && f.answer.question_asked
         ? '<div class="mxbs-asked">' + esc(d.bsAsked) + ': <span class="keep">' + esc(f.answer.question_asked) + '</span></div>' : "";
       var scan = f.scan ? '<div class="mxbs-asked">' + esc(d.bsScan) + ' <span class="keep">' + esc(f.scan.tool) + '</span></div>' : "";
+      var sc = f.scenario_check
+        ? '<div class="mxbs-asked ' + (f.scenario_check.consistent === false ? 'mxbs-differs' : '') + '">' + esc(d.bsCheck) + ': <span class="keep">' + esc(f.scenario_check.question) + '</span> → <b class="keep">' +
+          esc(fmtVal(f.scenario_check.answer)) + '</b> <span class="mxbs-tag keep">' +
+          esc(f.scenario_check.consistent === true ? d.bsAgree : (f.scenario_check.consistent === false ? d.bsDiffer : d.bsNoCmp)) + '</span></div>'
+        : "";
       return '<div class="mxbs-f"><div class="mxbs-q">' + esc(f.question) + '</div>' +
         '<div class="mxbs-v"><b class="keep">' + esc(fmtVal(f.value)) + '</b><span class="mxbs-chip s-' + esc(f.status) + '">' + esc(f.trust) + '</span></div>' +
-        q + asked + scan + '</div>';
+        q + asked + scan + sc + '</div>';
     }
     function basisBlock(c){
       var d = T[lang];

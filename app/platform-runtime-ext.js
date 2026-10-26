@@ -1077,13 +1077,30 @@ function initChat(){
       }).join("") + '</div>';
     }
 
+    function scnFilled(r){
+      var head = '<div class="scn-h keep">AN EXAMPLE FOR YOUR SYSTEM · WRITTEN BY A LOCAL MODEL, NOT REVIEWED</div>';
+      if(r && r.text){
+        return head + '<div class="scn-t">' + esc(r.text) + '</div>' +
+          (r.caution ? '<div class="scn-caution keep">Check this example: ' + esc(r.caution) + '.</div>' : '') +
+          '<div class="scn-b keep">The question and answers here are what you are answering. This example only helps you picture it.</div>';
+      }
+      return '<div class="scn-b keep">No specific example could be written from what is known' + (r && r.reason ? ' (' + esc(r.reason) + ')' : '') +
+        '. The question above stands.</div><button type="button" class="scn-go">Try again</button>';
+    }
     function scenarioBlock(q){
       if(!q.field_path) return "";
-      if(q.scenario && q.scenario.text){
-        return '<div class="scn" data-field="' + esc(q.field_path) + '"><div class="scn-h keep">AN EXAMPLE FOR YOUR SYSTEM · WRITTEN BY A LOCAL MODEL, NOT REVIEWED</div>' +
-          '<div class="scn-t">' + esc(q.scenario.text) + '</div><div class="scn-b keep">The question and answers above are what you are answering.</div></div>';
-      }
-      return '<div class="scn" data-field="' + esc(q.field_path) + '"><button type="button" class="scn-go">Make this concrete for my system</button></div>';
+      var inner = (q.scenario && q.scenario.text)
+        ? scnFilled(q.scenario)
+        : '<div class="scn-h keep">AN EXAMPLE FOR YOUR SYSTEM</div><div class="scn-b keep">Writing an example for your system… you can answer without waiting.</div>';
+      return '<div class="scn" data-field="' + esc(q.field_path) + '">' + inner + '</div>';
+    }
+    /* the local model writes it NOW, for the tool being assessed; the library question above is untouched */
+    function autoScenario(q){
+      if(!q || !q.field_path || (q.scenario && q.scenario.text)) return;
+      var boxes = S.querySelectorAll('.scn[data-field="' + q.field_path.replace(/"/g, '\\"') + '"]');
+      var box = boxes[boxes.length - 1]; if(!box) return;
+      makeScenarioQuestion(eid, {field_path: q.field_path}).then(function(r){ box.innerHTML = scnFilled(r); })
+        .catch(function(err){ box.innerHTML = '<div class="scn-b keep">Could not write one: ' + esc(err.message) + '</div><button type="button" class="scn-go">Try again</button>'; });
     }
 
     function askCurrent(){
@@ -1102,6 +1119,7 @@ function initChat(){
           ? '<div class="why">' + (q.options && q.options.length ? 'Or type your own answer below.' : 'Type your answer below.') + '</div>'
           : '')
       );
+      autoScenario(q);
     }
 
     function clearLiveOptions(){
@@ -1176,13 +1194,9 @@ function initChat(){
       var go = e.target.closest(".scn-go");
       if(go){
         var box = go.closest(".scn"), fp = box.getAttribute("data-field");
-        box.innerHTML = '<div class="scn-b keep">Writing an example for your system… this can take up to a minute.</div>';
-        makeScenarioQuestion(eid, {field_path: fp}).then(function(r){
-          box.innerHTML = (r && r.status === "ok" && r.text)
-            ? '<div class="scn-h keep">AN EXAMPLE FOR YOUR SYSTEM · WRITTEN BY A LOCAL MODEL, NOT REVIEWED</div><div class="scn-t">' + esc(r.text) +
-              '</div><div class="scn-b keep">The question and answers above are what you are answering.</div>'
-            : '<div class="scn-b keep">No specific example could be written from what is known. ' + esc((r && r.reason) || "") + ' The question above stands.</div>';
-        }).catch(function(err){ box.innerHTML = '<div class="scn-b keep">Could not write one: ' + esc(err.message) + '</div>'; });
+        box.innerHTML = '<div class="scn-h keep">AN EXAMPLE FOR YOUR SYSTEM</div><div class="scn-b keep">Writing an example for your system… this can take up to a minute.</div>';
+        makeScenarioQuestion(eid, {field_path: fp, force: true}).then(function(r){ box.innerHTML = scnFilled(r); })
+          .catch(function(err){ box.innerHTML = '<div class="scn-b keep">Could not write one: ' + esc(err.message) + '</div><button type="button" class="scn-go">Try again</button>'; });
         return;
       }
       var submitBtn = e.target.closest(".opt-submit");
@@ -2090,7 +2104,7 @@ function initMaster(){
         gnBased:function(n){ return "Based on " + n + " fact(s) about your system"; },
         gnMake:"Write a question about my system", gnMaking:"Writing a question for your system… this can take up to a minute.",
         gnRedo:"Write a different one", gnNone:"No specific question could be written from what is known, so the general question stands.",
-        gnErr:"Could not write one: ",
+        gnErr:"Could not write one: ", gnCaution:"Check this question:",
         bsH:"WHAT THIS JUDGEMENT RESTS ON", bsLoading:"Loading what this rests on…", bsErr:"Could not load it: ",
         bsNone:"Nothing has been recorded for this control yet.", bsFacts:"FACTS USED", bsAsked:"You were asked",
         bsScan:"Observed by", bsConf:"confidence", bsDoc:"IN YOUR DOCUMENTS", bsSearch:"Search my documents",
@@ -2157,7 +2171,7 @@ function initMaster(){
         gnBased:function(n){ return "مبني على " + n + " من الوقائع عن نظامك"; },
         gnMake:"اكتب سؤالا عن نظامي", gnMaking:"جارٍ كتابة سؤال لنظامك… قد يستغرق حتى دقيقة.",
         gnRedo:"اكتب سؤالا آخر", gnNone:"تعذّر كتابة سؤال محدد مما هو معروف، فيبقى السؤال العام.",
-        gnErr:"تعذّرت الكتابة: ",
+        gnErr:"تعذّرت الكتابة: ", gnCaution:"تحقق من هذا السؤال:",
         bsH:"ما يستند إليه هذا الحكم", bsLoading:"جارٍ تحميل ما يستند إليه…", bsErr:"تعذّر التحميل: ",
         bsNone:"لم يُسجَّل شيء لهذا الضابط بعد.", bsFacts:"الوقائع المستخدمة", bsAsked:"سُئلتَ",
         bsScan:"رصدها", bsConf:"الثقة", bsDoc:"في وثائقك", bsSearch:"ابحث في وثائقي",
@@ -2338,7 +2352,8 @@ function initMaster(){
       }).join("");
       return '<div class="mxrq" data-skey="' + esc(sc.key) + '">' +
         '<div class="mxevd-h">' + esc(d.gnH) + (a ? ' <span class="mxcl-ans-tag">' + esc(d.rqAnswered) + '</span>' : '') + '</div>' +
-        '<div class="mxrq-draft keep">' + esc(d.gnDraft(sc.model)) + '</div>' + based +
+        '<div class="mxrq-draft keep">' + esc(d.gnDraft(sc.model)) + '</div>' +
+        (sc.caution ? '<div class="mxrq-caution keep">' + esc(d.gnCaution) + ' ' + esc(sc.caution) + '.</div>' : '') + based +
         '<div class="mxcl-q">' + esc(sc.text) + '</div>' +
         '<form class="mxrq-form">' + opts +
           '<input class="mxrq-note" type="text" maxlength="500" placeholder="' + esc(d.rqNote) + '">' +
@@ -2364,8 +2379,9 @@ function initMaster(){
         '<button type="button" class="btn-g mxrq-gen">' + esc(sc && sc.status === "ok" ? d.gnRedo : d.gnMake) + '</button></div>';
     }
     function readinessBlock(c){
-      var main = (c.scenario && c.scenario.status === "ok") ? generatedBlock(c) : templateBlock(c);
-      return main + genActions(c);
+      /* the fixed question stays, and the model-written one is asked as well */
+      var gen = (c.scenario && c.scenario.status === "ok") ? generatedBlock(c) : "";
+      return templateBlock(c) + gen + genActions(c);
     }
     function bsFact(f, d){
       var q = f.document && f.document.quote
@@ -2413,6 +2429,16 @@ function initMaster(){
       var c = DATA.controls.find(function(x){ return x.control_id === cid; });
       var row = root.querySelector('.frow[data-cid="' + cid.replace(/"/g,'\\"') + '"]');
       if(c && row && row.nextElementSibling && row.nextElementSibling.classList.contains("mxevd")) row.nextElementSibling.outerHTML = evidenceDetail(c);
+    }
+    /* opening an applicable control makes the local model write its question for THIS tool, once per page visit */
+    function autoGenerate(cid){
+      var c = DATA.controls.find(function(x){ return x.control_id === cid; });
+      if(!c || c.verdict === "NOT_APPLICABLE" || c.scenario || BUSY["gen:" + cid] || BUSY["auto:" + cid]) return;
+      BUSY["auto:" + cid] = true; BUSY["gen:" + cid] = true; refreshDetail(cid);
+      makeScenarioQuestion(eidCurrent, {control_id: cid})
+        .then(async function(){ DATA = await getMaster(eidCurrent); })
+        .catch(function(err){ BUSY["generr:" + cid] = err.message; })
+        .then(function(){ delete BUSY["gen:" + cid]; refreshDetail(cid); });
     }
     async function loadBasis(cid, force){
       if(!force && BASIS[cid] !== undefined) return;
@@ -2526,6 +2552,7 @@ function initMaster(){
       row.insertAdjacentHTML("afterend", evidenceDetail(c));
       row.classList.add("open"); openRow = cid;
       loadBasis(cid);
+      autoGenerate(cid);
     });
     $("mxRows").addEventListener("keydown", function(e){
       if(e.key !== "Enter" && e.key !== " ") return;
